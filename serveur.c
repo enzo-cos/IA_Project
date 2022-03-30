@@ -73,7 +73,9 @@ int AttenteReq(struct Joueur *J1, struct Joueur *J2){
 
 
 int commencerPartie(struct Joueur *J1, struct Joueur *J2){
-  while(1){
+  bool partieEncours=true;
+  while(partieEncours){
+
     TCoupReq *req=NULL;
     TCoupRep *rep=NULL;
     int err;
@@ -145,6 +147,8 @@ int commencerPartie(struct Joueur *J1, struct Joueur *J2){
         return err;
       }
     }
+
+    //
   }
 }
 
@@ -208,25 +212,7 @@ int main(int argc, char** argv) {
   if(sockConx<1){ 
     return -1;
   }
-
-  /*
-  Pool de processus
-  */
-  // pid_t pid;
-  // int myBool=0;
-  // int i=0;
-  // while(i < MAX_CL && myBool==0){
-  //   pid=fork();
-  //   if (pid == -1) {
-	// 	  perror("Erreur sur le fork ");
-	// 	  return -9;
-  //   }
-  //   if(pid==0) {
-  //     myBool=1;
-  //   }
-  //   i++;
-  // }
-
+  
     /*
     * attente de connexion
     */
@@ -263,11 +249,7 @@ int main(int argc, char** argv) {
       printf("Error LancerPartie main\n");
     }
 
-  // while(1){
-   
-      
-  // }
-    /* 
+   /* 
    * arret de la connexion et fermeture
    */
   shutdown(J1.sockTrans, SHUT_RDWR); close(J1.sockTrans);
