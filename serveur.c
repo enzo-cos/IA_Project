@@ -20,47 +20,46 @@ struct Joueur
   char *nomJoueur; //Ne sera JAMAIS envoyé
 };
 
-
 int AttenteReq(struct Joueur *J1, struct Joueur *J2){
-  TPartieReq *req= malloc(sizeof(struct TPartieReq*));
-  TPartieRep *rep= malloc(sizeof(struct TPartieRep*));
+  TPartieReq req;
+  TPartieRep rep;
   int err;
-  err=recv(J1->sockTrans,req,sizeof(struct TPartieReq*),0);
+  err=recv(J1->sockTrans,&req,sizeof(TPartieReq),0);
   if(err<=0){
     perror("(serveurTCP) erreur dans la reception");
     shutdown(J1->sockTrans, SHUT_RDWR); close(J1->sockTrans);
     return err;
   }
-  if(req->idRequest==PARTIE){
-    J1->nomJoueur=req->nomJoueur;
+  if(req.idRequest==PARTIE){
+    J1->nomJoueur=req.nomJoueur;
     J1->couleur=BLANC;
   }
 
-  err=recv(J2->sockTrans,req,sizeof(struct TPartieReq*),0);
+  err=recv(J2->sockTrans,&req,sizeof(TPartieReq),0);
   if(err<=0){
     perror("(serveurTCP) erreur dans la reception");
     shutdown(J2->sockTrans, SHUT_RDWR); close(J2->sockTrans);
     return err;
   }
-  if(req->idRequest==PARTIE){
-    J2->nomJoueur=req->nomJoueur;
+  if(req.idRequest==PARTIE){
+    J2->nomJoueur=req.nomJoueur;
     J2->couleur=NOIR;
   }
 
-  rep->coul=J1->couleur;
-  rep->err=ERR_OK;
-  strcpy(rep->nomAdvers,J2->nomJoueur);
-  err=send(J1->sockTrans,rep,sizeof(struct TPartieRep*),0);
+  rep.coul=J1->couleur;
+  rep.err=ERR_OK;
+  strcpy(rep.nomAdvers,J2->nomJoueur);
+  err=send(J1->sockTrans,&rep,sizeof(TPartieRep),0);
   if(err<=0){
     perror("(serveur) erreur sur le send");
     shutdown(J1->sockTrans, SHUT_RDWR); close(J1->sockTrans);
     return err;
   }
 
-  rep->coul=J2->couleur;
-  rep->err=ERR_OK;
-  strcpy(rep->nomAdvers,J1->nomJoueur);
-  err=send(J2->sockTrans,rep,sizeof(struct TPartieRep*),0);
+  rep.coul=J2->couleur;
+  rep.err=ERR_OK;
+  strcpy(rep.nomAdvers,J1->nomJoueur);
+  err=send(J2->sockTrans,&rep,sizeof(TPartieRep),0);
   if(err<=0){
     perror("(serveur) erreur sur le send");
     shutdown(J2->sockTrans, SHUT_RDWR); close(J2->sockTrans);
@@ -71,82 +70,74 @@ int AttenteReq(struct Joueur *J1, struct Joueur *J2){
   return 0;
 }
 
+void finPartie(){
+  printf("Fin de la partie .\n");
+}
+
+int traiteCoup(struct Joueur *Jcoup,struct Joueur *Jadverse){
+  TCoupReq req;
+  TCoupRep rep;
+  int err;
+
+  //Réception du coup
+  err=recv(Jcoup->sockTrans,&req,sizeof(TCoupReq),0);
+  if(err<=0){
+    perror("(serveurTCP) erreur dans la reception");
+    shutdown(Jcoup->sockTrans, SHUT_RDWR); close(Jcoup->sockTrans);
+    return err;
+  }
+  if(req.idRequest==COUP){
+    //Vérification du coup
+    printf("Coul : %d\n",req.coul);
+    if(!validationCoup(2,req,&rep.propCoup)){
+      //A faire après ??
+      rep.err=ERR_COUP;
+      rep.validCoup=TRICHE;
+    }else{
+      rep.err=ERR_OK;
+      rep.validCoup=VALID;
+    }
+    //Envoi de la réponse au joueur 
+    err=send(Jcoup->sockTrans,&rep,sizeof(TCoupRep),0);
+    if(err<=0){
+      perror("(serveur) erreur sur le send");
+      shutdown(Jcoup->sockTrans, SHUT_RDWR); close(Jcoup->sockTrans);
+      return err;
+    }
+    //Envoie de la réponse à l'adversaire
+    err=send(Jadverse->sockTrans,&rep,sizeof(TCoupRep),0);
+    if(err<=0){
+      perror("(serveur) erreur sur le send");
+      shutdown(Jadverse->sockTrans, SHUT_RDWR); close(Jadverse->sockTrans);
+      return err;
+    }
+
+    //Vérifier propCoup pour résultat
+    if(rep.propCoup!=CONT){
+      finPartie();
+      return -1;
+    }
+    //Si tout est valide, Envoie du coup à l'adversaire
+    err=send(Jadverse->sockTrans,&req,sizeof(TCoupReq),0);
+    if(err<=0){
+      perror("(serveur) erreur sur le send");
+      shutdown(Jadverse->sockTrans, SHUT_RDWR); close(Jadverse->sockTrans);
+      return err;
+    }
+    
+  }
+  return 0;
+}
 
 int commencerPartie(struct Joueur *J1, struct Joueur *J2){
   bool partieEncours=true;
+  initialiserPartie();
   while(partieEncours){
-
-    TCoupReq *req=malloc(sizeof(struct TPartieReq*));
-    TCoupRep *rep=malloc(sizeof(struct TPartieRep*));
-    int err;
     //Verif Attente
-    err=recv(J1->sockTrans,req,sizeof(struct TCoupReq*),0);
-    if(err<=0){
-      perror("(serveurTCP) erreur dans la reception");
-      shutdown(J1->sockTrans, SHUT_RDWR); close(J1->sockTrans);
-      return err;
-    }
-    if(req->idRequest==COUP){
-      //Vérification Valide
-
-      rep->err=ERR_OK;
-      rep->validCoup=VALID;
-      rep->propCoup=CONT;//
-      err=send(J1->sockTrans,rep,sizeof(struct TCoupRep*),0);
-      if(err<=0){
-        perror("(serveur) erreur sur le send");
-        shutdown(J1->sockTrans, SHUT_RDWR); close(J1->sockTrans);
-        return err;
-      }
-      err=send(J2->sockTrans,rep,sizeof(struct TCoupRep*),0);
-      if(err<=0){
-        perror("(serveur) erreur sur le send");
-        shutdown(J2->sockTrans, SHUT_RDWR); close(J2->sockTrans);
-        return err;
-      }
-
-      err=send(J2->sockTrans,req,sizeof(struct TCoupReq*),0);
-      if(err<=0){
-        perror("(serveur) erreur sur le send");
-        shutdown(J2->sockTrans, SHUT_RDWR); close(J2->sockTrans);
-        return err;
-      }
-      
-    }
-
-
-    err=recv(J2->sockTrans,req,sizeof(struct TCoupReq*),0);
-    if(err<=0){
-      perror("(serveurTCP) erreur dans la reception");
-      shutdown(J2->sockTrans, SHUT_RDWR); close(J2->sockTrans);
-      return err;
-    }
-    if(req->idRequest==COUP){
-     //Verif Valide
-
-      rep->err=ERR_OK;
-      rep->validCoup=VALID;
-      rep->propCoup=CONT;//
-      err=send(J2->sockTrans,rep,sizeof(struct TCoupRep*),0);
-      if(err<=0){
-        perror("(serveur) erreur sur le send");
-        shutdown(J2->sockTrans, SHUT_RDWR); close(J2->sockTrans);
-        return err;
-      }
-      err=send(J1->sockTrans,rep,sizeof(struct TCoupRep*),0);
-      if(err<=0){
-        perror("(serveur) erreur sur le send");
-        shutdown(J1->sockTrans, SHUT_RDWR); close(J1->sockTrans);
-        return err;
-      }
-
-      err=send(J1->sockTrans,req,sizeof(struct TCoupReq*),0);
-      if(err<=0){
-        perror("(serveur) erreur sur le send");
-        shutdown(J1->sockTrans, SHUT_RDWR); close(J1->sockTrans);
-        return err;
-      }
-    }
+    //Joueur 1
+    if(traiteCoup(J1,J2)!=0) return -2;
+    //Joueur 2
+    if(traiteCoup(J2,J1)!=0) return -2;
 
     //
   }
@@ -247,7 +238,7 @@ int main(int argc, char** argv) {
     err=LancerPartie(&J1,&J2,0);
     if(err<0){
       //ERROR
-      printf("Error LancerPartie main\n");
+      printf("Error LancerPartie main ou Fin partie\n");
     }
 
    /* 

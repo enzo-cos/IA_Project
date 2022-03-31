@@ -23,7 +23,7 @@ int DemandePartie(int sock){
     printf("nom joueur : %s \n", reqPartie.nomJoueur);
     printf("id : %d \n", reqPartie.idRequest);
 
-    err = send(sock, &reqPartie, sizeof(struct TPartieReq*), 0);
+    err = send(sock, &reqPartie, sizeof(TPartieReq), 0);
     if (err <= 0) { 
         perror("(client) erreur sur le send");
         shutdown(sock, SHUT_RDWR); close(sock);
@@ -31,7 +31,7 @@ int DemandePartie(int sock){
     }
 
     TPartieRep repPartie;
-    err = recv(sock, &repPartie, sizeof(struct TPartieRep*), 0);
+    err = recv(sock, &repPartie, sizeof(TPartieRep), 0);
         if (err <= 0) {
             perror("(Client) erreur dans la reception repPartie");
             shutdown(sock, SHUT_RDWR); 
@@ -45,7 +45,7 @@ int DemandePartie(int sock){
         printf("couleur Noir");
     }
 
-return 0;
+    return 0;
 
 }
 
@@ -53,8 +53,8 @@ return 0;
 int EnvoyerCoup(int sock){
     TCoupReq coup;
     int err;
-    coup.action.posPion.col = DEUX;
-    coup.action.posPion.lg = A;
+    coup.action.posPion.col = A;
+    coup.action.posPion.lg = DEUX;
     coup.coul  = BLANC;
     coup.idRequest = COUP;
     coup.typeCoup = POS_PION;
@@ -62,7 +62,7 @@ int EnvoyerCoup(int sock){
     while(1){
 
         
-        err =  send(sock, &coup, sizeof(struct TCoupReq*), 0);
+        err =  send(sock, &coup, sizeof(TCoupReq), 0);
         if (err <= 0) { 
             perror("(client) erreur sur le send");
             shutdown(sock, SHUT_RDWR); close(sock);
@@ -70,24 +70,24 @@ int EnvoyerCoup(int sock){
         }
 
         TCoupRep repCoup;
-        err = recv(sock, &repCoup, sizeof(struct TCoupRep*), 0);
-            if (err <= 0) {
-                perror("(Client) erreur dans la reception repCOUP");
-                shutdown(sock, SHUT_RDWR); 
-                close(sock);
-                return -6;
-            }
+        err = recv(sock, &repCoup, sizeof(TCoupRep), 0);
+        if (err <= 0) {
+            perror("(Client) erreur dans la reception repCOUP");
+            shutdown(sock, SHUT_RDWR); 
+            close(sock);
+            return -6;
+        }
 
         TCoupReq coupAdv;
-        err = recv(sock, &coupAdv, sizeof(struct TCoupReq*), 0);
-            if (err <= 0) {
-                perror("(Client) erreur dans la reception coupADV");
-                shutdown(sock, SHUT_RDWR); 
-                close(sock);
-                return -6;
-            }
-            i++;
-            printf(" i : %d\n", i);
+        err = recv(sock, &coupAdv, sizeof(TCoupReq), 0);
+        if (err <= 0) {
+            perror("(Client) erreur dans la reception coupADV");
+            shutdown(sock, SHUT_RDWR); 
+            close(sock);
+            return -6;
+        }
+        i++;
+        printf(" i : %d\n", i);
     }
 
     return 0;
