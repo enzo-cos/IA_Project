@@ -5,10 +5,13 @@
 #########
 LD_FLAGS =
 
-all: serveur
+all: serveur joueur
 
 serveur: serveur.c fonctionsTCP.o fctServ.o
 	gcc -Wall serveur.c -o serveur fonctionsTCP.o fctServ.o $(LD_FLAGS)
+
+joueur: joueur.c fonctionsTCP.o fctServ.o
+	gcc -Wall joueur.c -o joueur fonctionsTCP.o fctServ.o $(LD_FLAGS)
 
 fonctionsTCP.o: fonctionsTCP.c
 	gcc -Wall fonctionsTCP.c -o fonctionsTCP.o -c  $(LD_FLAGS)

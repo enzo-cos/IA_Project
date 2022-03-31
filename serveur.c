@@ -22,8 +22,8 @@ struct Joueur
 
 
 int AttenteReq(struct Joueur *J1, struct Joueur *J2){
-  TPartieReq *req=NULL;
-  TPartieRep *rep=NULL;
+  TPartieReq *req= malloc(sizeof(struct TPartieReq*));
+  TPartieRep *rep= malloc(sizeof(struct TPartieRep*));
   int err;
   err=recv(J1->sockTrans,req,sizeof(struct TPartieReq*),0);
   if(err<=0){
@@ -76,8 +76,8 @@ int commencerPartie(struct Joueur *J1, struct Joueur *J2){
   bool partieEncours=true;
   while(partieEncours){
 
-    TCoupReq *req=NULL;
-    TCoupRep *rep=NULL;
+    TCoupReq *req=malloc(sizeof(struct TPartieReq*));
+    TCoupRep *rep=malloc(sizeof(struct TPartieRep*));
     int err;
     //Verif Attente
     err=recv(J1->sockTrans,req,sizeof(struct TCoupReq*),0);
@@ -150,6 +150,7 @@ int commencerPartie(struct Joueur *J1, struct Joueur *J2){
 
     //
   }
+  return 0;
 }
 
 
