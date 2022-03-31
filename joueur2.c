@@ -15,7 +15,7 @@
 int DemandePartie(int sock){
     TPartieReq reqPartie;
     int err;
-    char nomJoueur[TNOM] = "j1";
+    char nomJoueur[TNOM] = "j2";
     
     reqPartie.idRequest = PARTIE;
     strcpy(reqPartie.nomJoueur,nomJoueur);
@@ -54,14 +54,12 @@ int EnvoyerCoup(int sock){
     TCoupReq coup;
     int err;
     coup.action.posPion.col = DEUX;
-    coup.action.posPion.lg = A;
-    coup.coul  = BLANC;
+    coup.action.posPion.lg = B;
+    coup.coul  = NOIR;
     coup.idRequest = COUP;
     coup.typeCoup = POS_PION;
-   int i=0;
+   
     while(1){
-
-        
         err =  send(sock, &coup, sizeof(struct TCoupReq*), 0);
         if (err <= 0) { 
             perror("(client) erreur sur le send");
@@ -86,8 +84,7 @@ int EnvoyerCoup(int sock){
                 close(sock);
                 return -6;
             }
-            i++;
-            printf(" i : %d\n", i);
+    
     }
 
     return 0;
