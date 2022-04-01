@@ -38,6 +38,7 @@ int DemandePartie(int sock){
             close(sock);
             return -6;
         }
+    printf("Mon advsersaire est %s\n",repPartie.nomAdvers);
 
     if(repPartie.coul == BLANC){
         printf("couleur Blanc");
@@ -75,6 +76,7 @@ int EnvoyerCoup(int sock){
                 close(sock);
                 return -6;
             }
+            
 
         TCoupReq coupAdv;
         err = recv(sock, &coupAdv, sizeof(TCoupReq), 0);

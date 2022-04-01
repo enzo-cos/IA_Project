@@ -21,7 +21,7 @@ struct Joueur
 };
 
 int AttenteReq(struct Joueur *J1, struct Joueur *J2){
-  TPartieReq req;
+  TPartieReq req,req2;
   TPartieRep rep;
   int err;
   err=recv(J1->sockTrans,&req,sizeof(TPartieReq),0);
@@ -35,14 +35,15 @@ int AttenteReq(struct Joueur *J1, struct Joueur *J2){
     J1->couleur=BLANC;
   }
 
-  err=recv(J2->sockTrans,&req,sizeof(TPartieReq),0);
+  err=recv(J2->sockTrans,&req2,sizeof(TPartieReq),0);
   if(err<=0){
     perror("(serveurTCP) erreur dans la reception");
     shutdown(J2->sockTrans, SHUT_RDWR); close(J2->sockTrans);
     return err;
   }
-  if(req.idRequest==PARTIE){
-    J2->nomJoueur=req.nomJoueur;
+
+  if(req2.idRequest==PARTIE){
+    J2->nomJoueur=req2.nomJoueur;
     J2->couleur=NOIR;
   }
 
@@ -58,6 +59,7 @@ int AttenteReq(struct Joueur *J1, struct Joueur *J2){
 
   rep.coul=J2->couleur;
   rep.err=ERR_OK;
+
   strcpy(rep.nomAdvers,J1->nomJoueur);
   err=send(J2->sockTrans,&rep,sizeof(TPartieRep),0);
   if(err<=0){
@@ -65,7 +67,6 @@ int AttenteReq(struct Joueur *J1, struct Joueur *J2){
     shutdown(J2->sockTrans, SHUT_RDWR); close(J2->sockTrans);
     return err;
   }
-
 
   return 0;
 }

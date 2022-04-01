@@ -38,6 +38,7 @@ int DemandePartie(int sock){
             close(sock);
             return -6;
         }
+    printf("Mon advsersaire est %s\n",repPartie.nomAdvers);
 
     if(repPartie.coul == BLANC){
         printf("couleur Blanc");
