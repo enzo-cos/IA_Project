@@ -1,0 +1,11 @@
+# Ignore files 
+*.o
+serveur
+colonneServeur
+joueur
+joueur2
+
+!.gitignore 
+
+
+\#*#
