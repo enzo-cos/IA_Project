@@ -236,7 +236,7 @@ int EnvoyerCoup(int sock, int couleur, int col){
 
     
     while(1){
-        if(couleur==BLANC){
+        if(couleur==BLANC && premiereManche){
             printf("appuyer pour envoyer requete \n ");
             scanf("%s",chaine);
             err =  send(sock, &coup, sizeof(TCoupReq), 0);
@@ -257,33 +257,33 @@ int EnvoyerCoup(int sock, int couleur, int col){
 
            premiereManche= ReponseCoup(repCoup,0);
             printf("premiere manche a %d \n",premiereManche);
-                
-            TCoupRep repAdv;
-            err = recv(sock, &repAdv, sizeof(TCoupRep), 0);
-                if (err <= 0) {
-                    perror("(Client) erreur dans la reception coupADV");
-                    shutdown(sock, SHUT_RDWR); 
-                    close(sock);
-                    return -6;
-                }
+            if(premiereManche){
+                TCoupRep repAdv;
+                err = recv(sock, &repAdv, sizeof(TCoupRep), 0);
+                    if (err <= 0) {
+                        perror("(Client) erreur dans la reception coupADV");
+                        shutdown(sock, SHUT_RDWR); 
+                        close(sock);
+                        return -6;
+                    }
 
-            premiereManche= ReponseCoup(repAdv,1);
-             printf("premiere manche b %d \n",premiereManche);
-            TCoupReq coupAdv;
-            err = recv(sock, &coupAdv, sizeof(TCoupReq), 0);
-                if (err <= 0) {
-                    perror("(Client) erreur dans la reception coupADV");
-                    shutdown(sock, SHUT_RDWR); 
-                    close(sock);
-                    return -6;
+                premiereManche= ReponseCoup(repAdv,1);
+                printf("premiere manche b %d \n",premiereManche);
+                if(premiereManche){
+                    TCoupReq coupAdv;
+                    err = recv(sock, &coupAdv, sizeof(TCoupReq), 0);
+                        if (err <= 0) {
+                            perror("(Client) erreur dans la reception coupADV");
+                            shutdown(sock, SHUT_RDWR); 
+                            close(sock);
+                            return -6;
+                        }
+                    RequeteADV(coupAdv);
                 }
-            RequeteADV(coupAdv);
-                     
-            
+            }
         } 
-        else{
+        else if(couleur==BLANC && !premiereManche){
             printf("premiere manche %d \n",premiereManche);
-
             TCoupRep repAdv;
             err = recv(sock, &repAdv, sizeof(TCoupRep), 0);
             if (err <= 0) {
@@ -293,40 +293,133 @@ int EnvoyerCoup(int sock, int couleur, int col){
                 return -6;
             }
 
-            premiereManche= ReponseCoup(repAdv,1);
-            printf("premiere manche %d \n",premiereManche);
-            TCoupReq coupAdv;
-            err = recv(sock, &coupAdv, sizeof(TCoupReq), 0);
-            if (err <= 0) {
-                perror("(Client) erreur dans la reception coupADV");
-                shutdown(sock, SHUT_RDWR); 
-                close(sock);
-                return -6;
+                ReponseCoup(repAdv,1);
+                printf("premiere manche %d \n",premiereManche);
+                TCoupReq coupAdv;
+                err = recv(sock, &coupAdv, sizeof(TCoupReq), 0);
+                if (err <= 0) {
+                    perror("(Client) erreur dans la reception coupADV");
+                    shutdown(sock, SHUT_RDWR); 
+                    close(sock);
+                    return -6;
+                }
+
+                RequeteADV(coupAdv);
+
+                printf("appuyer pour envoyer requete \n ");
+                scanf("%s",chaine);
+
+                err = send(sock, &coup, sizeof(TCoupReq), 0);
+                if (err <= 0) { 
+                    perror("(client) erreur sur le send");
+                    shutdown(sock, SHUT_RDWR); close(sock);
+                    return -5;
+                }
+
+                TCoupRep repCoup;
+                err = recv(sock, &repCoup, sizeof(TCoupRep), 0);
+                if (err <= 0) {
+                    perror("(Client) erreur dans la reception repCOUP");
+                    shutdown(sock, SHUT_RDWR); 
+                    close(sock);
+                    return -6;
+                }
+               ReponseCoup(repCoup,0);
+            
+
+
             }
+            else if(couleur==NOIR && premiereManche){
+                printf("premiere manche %d \n",premiereManche);
+                TCoupRep repAdv;
+                err = recv(sock, &repAdv, sizeof(TCoupRep), 0);
+                if (err <= 0) {
+                    perror("(Client) erreur dans la reception coupADV");
+                    shutdown(sock, SHUT_RDWR); 
+                    close(sock);
+                    return -6;
+                }
 
-            RequeteADV(coupAdv);
+                premiereManche= ReponseCoup(repAdv,1);
+                printf("premiere manche %d \n",premiereManche);
 
-            printf("appuyer pour envoyer requete \n ");
-            scanf("%s",chaine);
+                if(premiereManche){
+                    TCoupReq coupAdv;
+                    err = recv(sock, &coupAdv, sizeof(TCoupReq), 0);
+                    if (err <= 0) {
+                        perror("(Client) erreur dans la reception coupADV");
+                        shutdown(sock, SHUT_RDWR); 
+                        close(sock);
+                        return -6;
+                    }
 
-            err =  send(sock, &coup, sizeof(TCoupReq), 0);
-            if (err <= 0) { 
-                perror("(client) erreur sur le send");
-                shutdown(sock, SHUT_RDWR); close(sock);
-                return -5;
+                    RequeteADV(coupAdv);
+
+                    printf("appuyer pour envoyer requete \n ");
+                    scanf("%s",chaine);
+
+                    err =  send(sock, &coup, sizeof(TCoupReq), 0);
+                    if (err <= 0) { 
+                        perror("(client) erreur sur le send");
+                        shutdown(sock, SHUT_RDWR); close(sock);
+                        return -5;
+                    }
+
+                    TCoupRep repCoup;
+                    err = recv(sock, &repCoup, sizeof(TCoupRep), 0);
+                    if (err <= 0) {
+                        perror("(Client) erreur dans la reception repCOUP");
+                        shutdown(sock, SHUT_RDWR); 
+                        close(sock);
+                        return -6;
+                    }
+                    premiereManche =ReponseCoup(repCoup,0);
+                }
             }
+            else if(couleur==NOIR && !premiereManche){
+                printf("appuyer pour envoyer requete \n ");
+                scanf("%s",chaine);
+                err =  send(sock, &coup, sizeof(TCoupReq), 0);
+                if (err <= 0) { 
+                    perror("(client) erreur sur le send");
+                    shutdown(sock, SHUT_RDWR); close(sock);
+                    return -5;
+                }
 
-            TCoupRep repCoup;
-            err = recv(sock, &repCoup, sizeof(TCoupRep), 0);
-            if (err <= 0) {
-                perror("(Client) erreur dans la reception repCOUP");
-                shutdown(sock, SHUT_RDWR); 
-                close(sock);
-                return -6;
-            }
-            premiereManche =ReponseCoup(repCoup,0);
+                TCoupRep repCoup;
+                err = recv(sock, &repCoup, sizeof(TCoupRep), 0);
+                    if (err <= 0) {
+                        perror("(Client) erreur dans la reception repCOUP");
+                        shutdown(sock, SHUT_RDWR); 
+                        close(sock);
+                        return -6;
+                    }
 
-        }
+                ReponseCoup(repCoup,0);
+                printf("premiere manche a %d \n",premiereManche);
+                TCoupRep repAdv;
+                err = recv(sock, &repAdv, sizeof(TCoupRep), 0);
+                if (err <= 0) {
+                    perror("(Client) erreur dans la reception coupADV");
+                    shutdown(sock, SHUT_RDWR); 
+                    close(sock);
+                    return -6;
+                }
+
+               ReponseCoup(repAdv,1);
+                printf("premiere manche b %d \n",premiereManche);
+                TCoupReq coupAdv;
+                err = recv(sock, &coupAdv, sizeof(TCoupReq), 0);
+                if (err <= 0) {
+                    perror("(Client) erreur dans la reception coupADV");
+                    shutdown(sock, SHUT_RDWR); 
+                    close(sock);
+                    return -6;
+                }
+                RequeteADV(coupAdv);
+                
+            }  
+            
         
        
     }
