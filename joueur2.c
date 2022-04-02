@@ -91,12 +91,15 @@ bool ReponseCoup(TCoupRep repCoup, int moi){
             }else{
                 switch (repCoup.validCoup) {
                     case 0 :
+                        premiereManche =false;
                         printf("Le coup de l'adversaire est valide \n");
                         break;
                     case 1 : 
+                        premiereManche =false;
                         printf("Le coup de l'adversaire est timeout \n");
                         break;
                     case 2 : 
+                        premiereManche =false;
                         printf("Le coup de l'adversaire est triche \n");
                         break;
                     default:
@@ -259,9 +262,9 @@ int EnvoyerCoup(int sock, int couleur){
             if(!premiereManche){
                 couleur=NOIR;
                 printf("coul blanc %d \n", couleur);
-            }
+            }else{
                 
-                TCoupRep repAdv;
+            TCoupRep repAdv;
             err = recv(sock, &repAdv, sizeof(TCoupRep), 0);
                 if (err <= 0) {
                     perror("(Client) erreur dans la reception coupADV");
@@ -282,11 +285,11 @@ int EnvoyerCoup(int sock, int couleur){
                 }
             RequeteADV(coupAdv);
             
-       
+            }
                 
             
         } 
-        if(couleur==NOIR ){
+        else{
             TCoupRep repAdv;
             err = recv(sock, &repAdv, sizeof(TCoupRep), 0);
             if (err <= 0) {
@@ -328,7 +331,7 @@ int EnvoyerCoup(int sock, int couleur){
             }
             premiereManche =ReponseCoup(repCoup,0);
              if(!premiereManche){
-                couleur=NOIR;
+                couleur=BLANC;
                 printf("coul blanc %d \n", couleur);
             }
         }

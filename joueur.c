@@ -12,13 +12,13 @@
 #include "validation.h"
 
 
-int DemandePartie(int sock){
+int DemandePartie(int sock, char nom[TNOM]){
     TPartieReq reqPartie;
     int err;
-    char nomJoueur[TNOM] = "j1";
+    //char nomJoueur[TNOM] = nom;
     
     reqPartie.idRequest = PARTIE;
-    strcpy(reqPartie.nomJoueur,nomJoueur);
+    strcpy(reqPartie.nomJoueur,nom);
 
     printf("nom joueur : %s \n", reqPartie.nomJoueur);
     printf("id : %d \n", reqPartie.idRequest);
@@ -91,12 +91,15 @@ bool ReponseCoup(TCoupRep repCoup, int moi){
             }else{
                 switch (repCoup.validCoup) {
                     case 0 :
+                       
                         printf("Le coup de l'adversaire est valide \n");
                         break;
                     case 1 : 
+                        
                         printf("Le coup de l'adversaire est timeout \n");
                         break;
                     case 2 : 
+                       
                         printf("Le coup de l'adversaire est triche \n");
                         break;
                     default:
@@ -108,14 +111,15 @@ bool ReponseCoup(TCoupRep repCoup, int moi){
                         printf("La partie Continiue\n");
                         break;
                     case 1 : 
-                       
+                       premiereManche =false;
                         printf("l'adversaire à gagné vous avez perdu \n");
                         break;
                     case 2 : 
-                       
+                       premiereManche =false;
                         printf("Match Nulle \n");
                         break;
                     case 3 : 
+                        premiereManche =false;
                         printf("l'adversaire à Perdu vous avez gagné \n");
                         break;
                 
@@ -219,10 +223,10 @@ void RequeteADV(TCoupReq coupAdv){
 }
 
 
-int EnvoyerCoup(int sock, int couleur){
+int EnvoyerCoup(int sock, int couleur, int col){
     TCoupReq coup;
     int err;
-    coup.action.posPion.col = A;
+    coup.action.posPion.col = col;
     coup.action.posPion.lg = DEUX;
     coup.coul  = couleur;
     coup.idRequest = COUP;
@@ -232,9 +236,6 @@ int EnvoyerCoup(int sock, int couleur){
 
     
     while(1){
-      
-
-
         if(couleur==BLANC){
             printf("appuyer pour envoyer requete \n ");
             scanf("%s",chaine);
@@ -255,13 +256,9 @@ int EnvoyerCoup(int sock, int couleur){
                 }
 
            premiereManche= ReponseCoup(repCoup,0);
-            printf("premiere manche %d \n",premiereManche);
-            if(!premiereManche){
-                couleur=NOIR;
-                printf("coul blanc %d \n", couleur);
-            }
+            printf("premiere manche a %d \n",premiereManche);
                 
-                TCoupRep repAdv;
+            TCoupRep repAdv;
             err = recv(sock, &repAdv, sizeof(TCoupRep), 0);
                 if (err <= 0) {
                     perror("(Client) erreur dans la reception coupADV");
@@ -270,8 +267,8 @@ int EnvoyerCoup(int sock, int couleur){
                     return -6;
                 }
 
-             ReponseCoup(repAdv,1);
-
+            premiereManche= ReponseCoup(repAdv,1);
+             printf("premiere manche b %d \n",premiereManche);
             TCoupReq coupAdv;
             err = recv(sock, &coupAdv, sizeof(TCoupReq), 0);
                 if (err <= 0) {
@@ -281,12 +278,12 @@ int EnvoyerCoup(int sock, int couleur){
                     return -6;
                 }
             RequeteADV(coupAdv);
-            
-       
-                
+                     
             
         } 
-        if(couleur==NOIR ){
+        else{
+            printf("premiere manche %d \n",premiereManche);
+
             TCoupRep repAdv;
             err = recv(sock, &repAdv, sizeof(TCoupRep), 0);
             if (err <= 0) {
@@ -296,7 +293,8 @@ int EnvoyerCoup(int sock, int couleur){
                 return -6;
             }
 
-             ReponseCoup(repAdv,1);
+            premiereManche= ReponseCoup(repAdv,1);
+            printf("premiere manche %d \n",premiereManche);
             TCoupReq coupAdv;
             err = recv(sock, &coupAdv, sizeof(TCoupReq), 0);
             if (err <= 0) {
@@ -307,11 +305,11 @@ int EnvoyerCoup(int sock, int couleur){
             }
 
             RequeteADV(coupAdv);
-                
+
             printf("appuyer pour envoyer requete \n ");
             scanf("%s",chaine);
-           
-             err =  send(sock, &coup, sizeof(TCoupReq), 0);
+
+            err =  send(sock, &coup, sizeof(TCoupReq), 0);
             if (err <= 0) { 
                 perror("(client) erreur sur le send");
                 shutdown(sock, SHUT_RDWR); close(sock);
@@ -327,10 +325,7 @@ int EnvoyerCoup(int sock, int couleur){
                 return -6;
             }
             premiereManche =ReponseCoup(repCoup,0);
-             if(!premiereManche){
-                couleur=NOIR;
-                printf("coul blanc %d \n", couleur);
-            }
+
         }
         
        
@@ -351,12 +346,14 @@ int main(int argc, char** argv) {
     
 
       /* verification des arguments */
-    if (argc != 3) {
-        printf("usage : %s nom/IPServ port\n", argv[0]);
+    if (argc != 5) {
+        printf("usage : %s nom/IPServ port nomJOueur col\n", argv[0]);
         return -1;
     }
+    char* nom = argv[3];
     ipMachServ = argv[1]; //nomMachServ = argv[1];
     port = atoi(argv[2]);
+     int col = atoi(argv[4]);
 
     sock = socketClient(ipMachServ,port);
 
@@ -364,8 +361,8 @@ int main(int argc, char** argv) {
         return -1;
     }
     int couleur;
-    couleur = DemandePartie(sock);
-    EnvoyerCoup(sock, couleur);
+    couleur = DemandePartie(sock, nom);
+    EnvoyerCoup(sock, couleur,col);
     
     return 0;
 
