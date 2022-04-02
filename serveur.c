@@ -267,13 +267,19 @@ int main(int argc, char** argv) {
       //ERROR
       printf("Error Attente Req main\n");
     }
-
+    int nbPartie=0;
     printf("Joueur 1 %s\n",J1.nomJoueur);
-    err=LancerPartie(&J1,&J2,0);
+    err=LancerPartie(&J1,&J2,nbPartie);
     if(err<0){
       //ERROR
       printf("Error LancerPartie main ou Fin partie\n");
     }
+    // nbPartie++;
+    // err=LancerPartie(&J1,&J2,nbPartie);
+    // if(err<0){
+    //   //ERROR
+    //   printf("Error LancerPartie main ou Fin partie\n");
+    // }
 
    /* 
    * arret de la connexion et fermeture
