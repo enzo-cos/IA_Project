@@ -7,8 +7,8 @@ LD_FLAGS =
 
 all: serveur joueur joueur2
 
-serveur: serveur.c fonctionsTCP.o fctServ.o validation.o
-	gcc -Wall serveur.c -o serveur fonctionsTCP.o fctServ.o validation.o $(LD_FLAGS)
+serveur: serveur.c fonctionsTCP.o fctServ.o colonne.o
+	gcc -Wall serveur.c -o serveur fonctionsTCP.o fctServ.o colonne.o $(LD_FLAGS)
 
 joueur: joueur.c fonctionsTCP.o fctServ.o
 	gcc -Wall joueur.c -o joueur fonctionsTCP.o fctServ.o $(LD_FLAGS)

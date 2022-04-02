@@ -17,35 +17,67 @@ struct Joueur
   struct sockaddr_in addJ;
   TPion couleur;
   int sizeAddr;
-  char *nomJoueur; //Ne sera JAMAIS envoyé
+  char nomJoueur[32]; //Ne sera JAMAIS envoyé
 };
 
-int AttenteReq(struct Joueur *J1, struct Joueur *J2){
-  TPartieReq req,req2;
+int AttenteReq(struct Joueur *J1, struct Joueur *J2,int sockConx){
+  TPartieReq req;
   TPartieRep rep;
   int err;
-  err=recv(J1->sockTrans,&req,sizeof(TPartieReq),0);
-  if(err<=0){
-    perror("(serveurTCP) erreur dans la reception");
-    shutdown(J1->sockTrans, SHUT_RDWR); close(J1->sockTrans);
-    return err;
-  }
-  if(req.idRequest==PARTIE){
-    J1->nomJoueur=req.nomJoueur;
-    J1->couleur=BLANC;
+  fd_set readSet; 
+   /* preparation du fd_set et select */
+   int cpt=0;
+  while(cpt<2){
+    FD_ZERO(&readSet);
+    FD_SET(sockConx, &readSet);
+    FD_SET(J1->sockTrans, &readSet);
+    FD_SET(J2->sockTrans, &readSet);
+    err = select(FD_SETSIZE, &readSet, NULL, NULL, NULL);
+    //Traitement du select
+    if (err < 0) {
+      perror("(servSelect) error in select"); 
+      shutdown(J1->sockTrans, SHUT_RDWR); close(J1->sockTrans);
+      shutdown(J2->sockTrans, SHUT_RDWR); close(J2->sockTrans);
+      close(sockConx);
+      return -5;
+    }
+
+    if(err>=0){
+      //Vérification de l'activité
+      if (FD_ISSET(J1->sockTrans, &readSet)) { 
+        err=recv(J1->sockTrans,&req,sizeof(TPartieReq),0);
+        if(err<=0){
+          perror("(serveurTCP) erreur dans la reception");
+          shutdown(J1->sockTrans, SHUT_RDWR); close(J1->sockTrans);
+          return err;
+        }
+        printf("J1 connected\n");
+        cpt++;
+        if(req.idRequest==PARTIE){
+
+          //J1->nomJoueur=req.nomJoueur;
+          strcpy(J1->nomJoueur,req.nomJoueur);
+          J1->couleur=BLANC;
+        }
+
+      }
+      if(FD_ISSET(J2->sockTrans, &readSet)){
+        err=recv(J2->sockTrans,&req,sizeof(TPartieReq),0);
+        if(err<=0){
+          perror("(serveurTCP) erreur dans la reception");
+          shutdown(J2->sockTrans, SHUT_RDWR); close(J2->sockTrans);
+          return err;
+        }
+        printf("J2 connected\n");
+        cpt++;
+        if(req.idRequest==PARTIE){
+         strcpy(J2->nomJoueur,req.nomJoueur);
+        J2->couleur=NOIR;
+        }
+      }
+    }
   }
 
-  err=recv(J2->sockTrans,&req2,sizeof(TPartieReq),0);
-  if(err<=0){
-    perror("(serveurTCP) erreur dans la reception");
-    shutdown(J2->sockTrans, SHUT_RDWR); close(J2->sockTrans);
-    return err;
-  }
-
-  if(req2.idRequest==PARTIE){
-    J2->nomJoueur=req2.nomJoueur;
-    J2->couleur=NOIR;
-  }
 
   rep.coul=J1->couleur;
   rep.err=ERR_OK;
@@ -56,7 +88,6 @@ int AttenteReq(struct Joueur *J1, struct Joueur *J2){
     shutdown(J1->sockTrans, SHUT_RDWR); close(J1->sockTrans);
     return err;
   }
-
   rep.coul=J2->couleur;
   rep.err=ERR_OK;
 
@@ -67,7 +98,6 @@ int AttenteReq(struct Joueur *J1, struct Joueur *J2){
     shutdown(J2->sockTrans, SHUT_RDWR); close(J2->sockTrans);
     return err;
   }
-
   return 0;
 }
 
@@ -87,10 +117,11 @@ int traiteCoup(struct Joueur *Jcoup,struct Joueur *Jadverse){
     shutdown(Jcoup->sockTrans, SHUT_RDWR); close(Jcoup->sockTrans);
     return err;
   }
+  printf("Réception du coup de %s : %d\n",Jcoup->nomJoueur,req.typeCoup);
+  printf("Coup des %d : %d\n",Jcoup->couleur,req.coul);
   if(req.idRequest==COUP){
     //Vérification du coup
-    printf("Coul : %d\n",req.coul);
-    if(!validationCoup(2,req,&rep.propCoup)){
+    if(!validationCoup(Jcoup->couleur+1,req,&rep.propCoup)){
       //A faire après ??
       rep.err=ERR_COUP;
       rep.validCoup=TRICHE;
@@ -98,6 +129,7 @@ int traiteCoup(struct Joueur *Jcoup,struct Joueur *Jadverse){
       rep.err=ERR_OK;
       rep.validCoup=VALID;
     }
+    printf("FIN VALIDATION\n");
     //Envoi de la réponse au joueur 
     err=send(Jcoup->sockTrans,&rep,sizeof(TCoupRep),0);
     if(err<=0){
@@ -230,12 +262,13 @@ int main(int argc, char** argv) {
     }
     nbCl++;
 
-    err=AttenteReq(&J1,&J2);
+    err=AttenteReq(&J1,&J2,sockConx);
     if(err<0){
       //ERROR
       printf("Error Attente Req main\n");
     }
 
+    printf("Joueur 1 %s\n",J1.nomJoueur);
     err=LancerPartie(&J1,&J2,0);
     if(err<0){
       //ERROR
@@ -253,30 +286,3 @@ int main(int argc, char** argv) {
 }
 
 
- /* preparation du fd_set et select pour l'ordre */
-    /*FD_ZERO(&readSet);
-    FD_SET(sockConx, &readSet);
-    FD_SET(J1.sockTrans, &readSet);
-    FD_SET(J2.sockTrans, &readSet);
-    //Traitement du select
-    if (err < 0) {
-      perror("(servSelect) error in select"); 
-      shutdown(J1.sockTrans, SHUT_RDWR); close(J1.sockTrans);
-      shutdown(J2.sockTrans, SHUT_RDWR); close(J2.sockTrans);
-      close(sockConx);
-      return -5;
-    }
-
-    if(err>=0){
-      //Vérification de l'activité
-      if (FD_ISSET(J1.sockTrans, &readSet)) { 
-          //erreur : fermeture et décalage
-          //   printf("Déconnexion du client dont l'IP est : %s\n",inet_ntoa(addClient[cpt].sin_addr));
-          // shutdown(J1.sockTrans, SHUT_RDWR); close(J1.sockTrans);
-      }
-      if(FD_ISSET(J2.sockTrans, &readSet)){
-        //ERROR : 
-        //printf("Déconnexion du client dont l'IP est : %s\n",inet_ntoa(addClient[cpt].sin_addr));
-        //shutdown(J2.sockTrans, SHUT_RDWR); close(J2.sockTrans);
-      }
-    }*/

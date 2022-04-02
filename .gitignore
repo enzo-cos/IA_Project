@@ -1,5 +1,6 @@
 # Ignore files 
 *.o
+*.class
 serveur
 colonneServeur
 joueur
