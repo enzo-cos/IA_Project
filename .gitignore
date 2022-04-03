@@ -5,6 +5,7 @@ serveur
 colonneServeur
 joueur
 joueur2
+truePlayer
 
 !.gitignore 
 
