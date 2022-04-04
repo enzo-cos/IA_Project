@@ -11,6 +11,7 @@
 #include "protocolColonne.h"
 #include "validation.h"
 
+int nbPartie=0;
 
 int DemandePartie(int sock, char nom[TNOM]){
     TPartieReq reqPartie;
@@ -359,6 +360,7 @@ int EnvoyerEtRecevoir(int sock, TCoupReq coup){
 int RecevoirEtEnvoyerCoup(int sock, TCoupReq coup){
     printf("Revc & send\n");
     int err=0;
+    
     //char chaine[20];
     TCoupRep repAdv;
     err = recv(sock, &repAdv, sizeof(TCoupRep), 0);
@@ -369,7 +371,12 @@ int RecevoirEtEnvoyerCoup(int sock, TCoupReq coup){
         return -6;
     }
     printf("Rep\n");
-    ReponseCoup(repAdv,1);
+    if(!ReponseCoup(repAdv,1) && coup.coul==NOIR){
+        if(nbPartie==2) return -1;
+        EnvoyerEtRecevoir(sock,coup);
+        nbPartie++;
+        return 0;
+    };
     TCoupReq coupAdv;
     err = recv(sock, &coupAdv, sizeof(TCoupReq), 0);
     if (err <= 0) {
@@ -401,11 +408,16 @@ int RecevoirEtEnvoyerCoup(int sock, TCoupReq coup){
         close(sock);
         return -6;
     }
-    ReponseCoup(repCoup,0);
+    if(!ReponseCoup(repCoup,0) && coup.coul==NOIR){
+        if(nbPartie==2) return -1;
+            EnvoyerEtRecevoir(sock,coup);
+        nbPartie++;
+    };
     return 0;
 }
 
-int EnvoyerCoup(int sock, int couleur){
+int Jouer(int sock, int couleur){
+    nbPartie++;
     TCoupReq coup;
    // int err;
     coup.action.posPion.col = A;
@@ -414,18 +426,20 @@ int EnvoyerCoup(int sock, int couleur){
     coup.idRequest = COUP;
     coup.typeCoup = POS_PION;
     //char chaine[20];
-    bool premiereManche = true; 
+    bool premierCoup = true; 
 
     while(1){
         
-        if(couleur==BLANC && premiereManche){
-            premiereManche=false;
+        if(couleur==BLANC && premierCoup){
+            premierCoup=false;
             EnvoyerEtRecevoir(sock,coup);
         } 
         else {
-            RecevoirEtEnvoyerCoup(sock,coup);
+            if(RecevoirEtEnvoyerCoup(sock,coup)<0){
+                //Error et fermeture socket
+                break;
             }
-            
+        }
         printf("fin Coup\n");
        
     }
@@ -459,7 +473,7 @@ int main(int argc, char** argv) {
     }
     int couleur;
     couleur = DemandePartie(sock, nom);
-    EnvoyerCoup(sock, couleur);
+    Jouer(sock, couleur);
     
     return 0;
 
