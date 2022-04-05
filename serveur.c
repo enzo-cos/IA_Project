@@ -186,20 +186,21 @@ int traiteCoup(struct Joueur *Jcoup,struct Joueur *Jadverse, int nJoueur1){
 }
 
 /**
- * @brief Commencer une partie
+ * @brief Lancer une partie
  * 
  * @param J1 Joueur 1
  * @param J2 Joueur 2
  * @return int code d'erreur
  */
-int commencerPartie(struct Joueur *J1, struct Joueur *J2){
-  bool partieEncours=true;
-  int err=0;
+int LancerPartie(struct Joueur *J1, struct Joueur *J2){
+  int err;
   int nbJoueur1=J1->couleur+1;
-  initialiserPartie();
-  while(partieEncours){
-    //Verif Attente
+  printf("J1 : %s - %d\n",J1->nomJoueur,J1->couleur);
+  printf("J2 : %s - %d\n",J2->nomJoueur,J2->couleur);
 
+  initialiserPartie();
+  while(1){
+    //Verif Attente
     //Joueur 1
     err=traiteCoup(J1,J2,nbJoueur1);
     if(err!=0) return err;
@@ -207,33 +208,6 @@ int commencerPartie(struct Joueur *J1, struct Joueur *J2){
     err=traiteCoup(J2,J1,nbJoueur1);
     if(err!=0) return err;
 
-  }
-  return 0;
-}
-
-/**
- * @brief Lancer une partie
- * 
- * @param J1 Joueur 1
- * @param J2 Joueur 2
- * @param nb Joueur devant commencer la partie
- * @return int code d'erreur
- */
-int LancerPartie(struct Joueur *J1, struct Joueur *J2,int nb){
-  int err;
-  printf("J1 : %s - %d\n",J1->nomJoueur,J1->couleur);
-  printf("J2 : %s - %d\n",J2->nomJoueur,J2->couleur);
-  if(nb==J1->couleur){
-    printf("Le joueur '%s' aux pions blancs commence\n",J1->nomJoueur);
-    err=commencerPartie(J1,J2);
-    if(err<0) return -1;
-  }else if(nb==J2->couleur){
-    printf("Le joueur '%s' aux pions noirs commence\n",J2->nomJoueur);
-    err=commencerPartie(J2,J1);
-    if(err<0) return -1;
-  }else{
-    printf("Error, personne ne peut commencer \n");
-    return -1;
   }
   return 0;
 }
@@ -308,14 +282,12 @@ int main(int argc, char** argv) {
       //ERROR
       printf("Error Attente Req main\n");
     }
-    int nbPartie=0;
     printf("Joueur 1 %s\n",J1.nomJoueur);
-    err=LancerPartie(&J1,&J2,nbPartie);
+    err=LancerPartie(&J1,&J2);
     if(err<0){
       printf("Error LancerPartie main ou Fin partie\n");
     }else{
-      nbPartie++;
-      err=LancerPartie(&J1,&J2,nbPartie);
+      err=LancerPartie(&J2,&J1);
       if(err<0){
         printf("Error LancerPartie main ou Fin partie\n");
       }
