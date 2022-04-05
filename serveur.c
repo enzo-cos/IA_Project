@@ -17,9 +17,17 @@ struct Joueur
   struct sockaddr_in addJ;
   TPion couleur;
   int sizeAddr;
-  char nomJoueur[32]; //Ne sera JAMAIS envoyé
+  char nomJoueur[32]; 
 };
 
+/**
+ * @brief Attente des requêtes des joueurs
+ * 
+ * @param J1 Joueur 1
+ * @param J2 Joueur 2
+ * @param sockConx socket de communication
+ * @return int code d'erreur
+ */
 int AttenteReq(struct Joueur *J1, struct Joueur *J2,int sockConx){
   TPartieReq req;
   TPartieRep rep;
@@ -101,14 +109,29 @@ int AttenteReq(struct Joueur *J1, struct Joueur *J2,int sockConx){
   return 0;
 }
 
+/**
+ * @brief Fin de partie
+ * 
+ */
 void finPartie(){
   printf("Fin de la partie .\n");
 }
 
-int traiteCoup(struct Joueur *Jcoup,struct Joueur *Jadverse){
+/**
+ * @brief Traiter un coup reçu par le client S
+ * 
+ * @param Jcoup Joueur ayant envoyé le coup
+ * @param Jadverse Joueur adverse
+ * @param nJoueur1 Numéro du joueur effectuant le premier coup de la partie
+ * @return int code d'erreur
+ */
+int traiteCoup(struct Joueur *Jcoup,struct Joueur *Jadverse, int nJoueur1){
   TCoupReq req;
   TCoupRep rep;
   int err;
+  //Joueur 1 ou 2 pour validation
+  int nj=2;
+  if(Jcoup->couleur+1==nJoueur1) nj=1;
 
   //Réception du coup
   err=recv(Jcoup->sockTrans,&req,sizeof(TCoupReq),0);
@@ -121,7 +144,7 @@ int traiteCoup(struct Joueur *Jcoup,struct Joueur *Jadverse){
   printf("Coup des %d : %d\n",Jcoup->couleur,req.coul);
   if(req.idRequest==COUP){
     //Vérification du coup
-    if(!validationCoup(Jcoup->couleur+1,req,&rep.propCoup)){
+    if(!validationCoup(nj,req,&rep.propCoup)){
       //A faire après ??
       rep.err=ERR_COUP;
       rep.validCoup=TRICHE;
@@ -148,7 +171,7 @@ int traiteCoup(struct Joueur *Jcoup,struct Joueur *Jadverse){
     //Vérifier propCoup pour résultat
     if(rep.propCoup!=CONT){
       finPartie();
-      return -1;
+      return 1;
     }
     //Si tout est valide, Envoie du coup à l'adversaire
     err=send(Jadverse->sockTrans,&req,sizeof(TCoupReq),0);
@@ -162,22 +185,40 @@ int traiteCoup(struct Joueur *Jcoup,struct Joueur *Jadverse){
   return 0;
 }
 
+/**
+ * @brief Commencer une partie
+ * 
+ * @param J1 Joueur 1
+ * @param J2 Joueur 2
+ * @return int code d'erreur
+ */
 int commencerPartie(struct Joueur *J1, struct Joueur *J2){
   bool partieEncours=true;
+  int err=0;
+  int nbJoueur1=J1->couleur+1;
   initialiserPartie();
   while(partieEncours){
     //Verif Attente
-    //Joueur 1
-    if(traiteCoup(J1,J2)!=0) return -2;
-    //Joueur 2
-    if(traiteCoup(J2,J1)!=0) return -2;
 
-    //
+    //Joueur 1
+    err=traiteCoup(J1,J2,nbJoueur1);
+    if(err!=0) return err;
+    //Joueur 2
+    err=traiteCoup(J2,J1,nbJoueur1);
+    if(err!=0) return err;
+
   }
   return 0;
 }
 
-
+/**
+ * @brief Lancer une partie
+ * 
+ * @param J1 Joueur 1
+ * @param J2 Joueur 2
+ * @param nb Joueur devant commencer la partie
+ * @return int code d'erreur
+ */
 int LancerPartie(struct Joueur *J1, struct Joueur *J2,int nb){
   int err;
   printf("J1 : %s - %d\n",J1->nomJoueur,J1->couleur);
@@ -271,15 +312,15 @@ int main(int argc, char** argv) {
     printf("Joueur 1 %s\n",J1.nomJoueur);
     err=LancerPartie(&J1,&J2,nbPartie);
     if(err<0){
-      //ERROR
       printf("Error LancerPartie main ou Fin partie\n");
+    }else{
+      nbPartie++;
+      err=LancerPartie(&J1,&J2,nbPartie);
+      if(err<0){
+        printf("Error LancerPartie main ou Fin partie\n");
+      }
     }
-    // nbPartie++;
-    // err=LancerPartie(&J1,&J2,nbPartie);
-    // if(err<0){
-    //   //ERROR
-    //   printf("Error LancerPartie main ou Fin partie\n");
-    // }
+    
 
    /* 
    * arret de la connexion et fermeture
