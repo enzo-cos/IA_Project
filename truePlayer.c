@@ -13,6 +13,13 @@
 
 int nbPartie=0;
 
+/**
+ * @brief Rejoindre la partie
+ * 
+ * @param sock socket de communication
+ * @param nom  nom du joueur
+ * @return int Couleur ou Erreur si <0
+ */
 int DemandePartie(int sock, char nom[TNOM]){
     TPartieReq reqPartie;
     int err;
@@ -28,17 +35,18 @@ int DemandePartie(int sock, char nom[TNOM]){
     if (err <= 0) { 
         perror("(client) erreur sur le send");
         shutdown(sock, SHUT_RDWR); close(sock);
-        return -5;
+        return -1;
     }
 
     TPartieRep repPartie;
     err = recv(sock, &repPartie, sizeof(TPartieRep), 0);
-        if (err <= 0) {
-            perror("(Client) erreur dans la reception repPartie");
-            shutdown(sock, SHUT_RDWR); 
-            close(sock);
-            return -6;
-        }
+    if (err <= 0) {
+        perror("(Client) erreur dans la reception repPartie");
+        shutdown(sock, SHUT_RDWR); 
+        close(sock);
+        return -2;
+    }
+
     printf("Mon advsersaire est %s\n",repPartie.nomAdvers);
 
     if(repPartie.coul == BLANC){
@@ -48,11 +56,17 @@ int DemandePartie(int sock, char nom[TNOM]){
     }
 
    return repPartie.coul;
-// couleur blanc = 0 ; couleur noir =1;
-
 
 }
 
+/**
+ * @brief Savoir si le coup finit la partie ?
+ * 
+ * @param repCoup Réponse du serveur 
+ * @param moi ??
+ * @return true si la partie doit continuer
+ * @return false si le coup arrête la partie
+ */
 bool ReponseCoup(TCoupRep repCoup, int moi){
             bool premiereManche =true;
             
@@ -131,6 +145,11 @@ bool ReponseCoup(TCoupRep repCoup, int moi){
             return  premiereManche;
 }
 
+/**
+ * @brief ???
+ * 
+ * @param coupAdv 
+ */
 void RequeteADV(TCoupReq coupAdv){
 
     char lg;
@@ -223,6 +242,12 @@ void RequeteADV(TCoupReq coupAdv){
 
 }
 
+/**
+ * @brief Saisir le coup à jouer
+ * 
+ * @param coup 
+ * @return int Code d'erreur
+ */
 int ChoisirCoup(TCoupReq *coup){
     bool Bpos=false;
     bool Bdepl=false;
@@ -332,118 +357,124 @@ int ChoisirCoup(TCoupReq *coup){
     return 0;
 }
 
-int EnvoyerEtRecevoir(int sock, TCoupReq coup){
+/**
+ * @brief Envoie d'un coup
+ * 
+ * @param sock socket de communication
+ * @param coup Requête coup
+ * @return int Code d'erreur, =0 si OK, <0 si Erreur, >0 si fin de partie
+ */
+int EnvoieCoup(int sock, TCoupReq coup){
     int err=0;
     err=ChoisirCoup(&coup);
-        if(err<0) printf("WTF??\n");
+        if(err<0) printf("Erreur Choix Coup\n");
+
     err =  send(sock, &coup, sizeof(TCoupReq), 0);
     if (err <= 0) { 
-        perror("(client) erreur sur le send");
-        shutdown(sock, SHUT_RDWR); close(sock);
-        return -5;
-    }
-
-    TCoupRep repCoup;
-    err = recv(sock, &repCoup, sizeof(TCoupRep), 0);
-        if (err <= 0) {
-            perror("(Client) erreur dans la reception repCOUP");
-            shutdown(sock, SHUT_RDWR); 
-            close(sock);
-            return -6;
-        }
-
-    ReponseCoup(repCoup,0);
-    printf("premiere manche a \n");
-   return 0;
-}
-
-int RecevoirEtEnvoyerCoup(int sock, TCoupReq coup){
-    printf("Revc & send\n");
-    int err=0;
-    
-    //char chaine[20];
-    TCoupRep repAdv;
-    err = recv(sock, &repAdv, sizeof(TCoupRep), 0);
-    if (err <= 0) {
-        perror("(Client) erreur dans la reception coupADV");
-        shutdown(sock, SHUT_RDWR); 
-        close(sock);
-        return -6;
-    }
-    printf("Rep\n");
-    if(!ReponseCoup(repAdv,1) && coup.coul==NOIR){
-        if(nbPartie==2) return -1;
-        EnvoyerEtRecevoir(sock,coup);
-        nbPartie++;
-        return 0;
-    };
-    TCoupReq coupAdv;
-    err = recv(sock, &coupAdv, sizeof(TCoupReq), 0);
-    if (err <= 0) {
-        perror("(Client) erreur dans la reception coupADV");
-        shutdown(sock, SHUT_RDWR); 
-        close(sock);
-        return -6;
-    }
-
-    RequeteADV(coupAdv);
-
-    // printf("appuyer pour envoyer requete \n ");
-    // scanf("%s",chaine);
-    err=ChoisirCoup(&coup);
-        if(err<0) printf("WTF??\n");
-
-    err = send(sock, &coup, sizeof(TCoupReq), 0);
-    if (err <= 0) { 
-        perror("(client) erreur sur le send");
-        shutdown(sock, SHUT_RDWR); close(sock);
-        return -5;
+        perror("(client) erreur sur le send PremierCoup");
+        //fermeture socket après
+        return -1;
     }
 
     TCoupRep repCoup;
     err = recv(sock, &repCoup, sizeof(TCoupRep), 0);
     if (err <= 0) {
         perror("(Client) erreur dans la reception repCOUP");
-        shutdown(sock, SHUT_RDWR); 
-        close(sock);
-        return -6;
+        //fermeture socket après
+        return -2;
     }
-    if(!ReponseCoup(repCoup,0) && coup.coul==NOIR){
-        if(nbPartie==2) return -1;
-            EnvoyerEtRecevoir(sock,coup);
-        nbPartie++;
-    };
+    //fin de partie si faux
+    if(!ReponseCoup(repCoup,0)) return 1;
+    printf("Coup envoyé \n");
     return 0;
 }
 
+/**
+ * @brief Recevoir le coup de l'adversaire et envoyer son coup
+ * 
+ * @param sock socket de communication
+ * @param coup Requête coup
+ * @return int Code d'erreur, =0 si OK, <0 si Erreur, >0 si fin de partie
+ */
+int RecevoirEtEnvoyerCoup(int sock, TCoupReq coup){
+    int err=0;
+    
+    TCoupRep repAdv;
+    err = recv(sock, &repAdv, sizeof(TCoupRep), 0);
+    if (err <= 0) {
+        perror("(Client) erreur dans la reception repAdv");
+        //fermeture socket après
+        return -2;
+    }
+
+    //Signifie fin de partie
+    if(!ReponseCoup(repAdv,1)) return 1;
+
+    TCoupReq coupAdv;
+    err = recv(sock, &coupAdv, sizeof(TCoupReq), 0);
+    if (err <= 0) {
+        perror("(Client) erreur dans la reception coupADV");
+        //fermeture socket après
+        return -2;
+    }
+
+    RequeteADV(coupAdv);
+    
+    err=EnvoieCoup(sock,coup);
+    
+    return err;
+}
+
+/**
+ * @brief Démarrer une partie
+ * 
+ * @param sock socket de communication
+ * @param coup Requête coup
+ * @param startToPlay  booleen, vrai si le joueur effectue le premier coup, faux sinon
+ * @return int 
+ */
+int DemarrerPartie(int sock, TCoupReq coup, bool startToPlay){
+    int err=0;
+    //Premier coup de la partie
+    if(startToPlay) err=EnvoieCoup(sock,coup);
+
+    while(err==0){
+        err=RecevoirEtEnvoyerCoup(sock,coup);
+    }
+    printf("Fin Partie numéro %d\n",nbPartie);
+    return err;
+}
+
+/**
+ * @brief Démarrer le jeu
+ * 
+ * @param sock socket de communication
+ * @param couleur couleur du joueur
+ * @return int code d'erreur
+ */
 int Jouer(int sock, int couleur){
-    nbPartie++;
     TCoupReq coup;
-   // int err;
+    bool startToPlay = false; 
+   // coup par défault
     coup.action.posPion.col = A;
     coup.action.posPion.lg = DEUX;
     coup.coul  = couleur;
     coup.idRequest = COUP;
     coup.typeCoup = POS_PION;
     //char chaine[20];
-    bool premierCoup = true; 
-
-    while(1){
-        
-        if(couleur==BLANC && premierCoup){
-            premierCoup=false;
-            EnvoyerEtRecevoir(sock,coup);
-        } 
-        else {
-            if(RecevoirEtEnvoyerCoup(sock,coup)<0){
-                //Error et fermeture socket
-                break;
-            }
-        }
-        printf("fin Coup\n");
-       
+    if(couleur==BLANC) startToPlay=true;
+    nbPartie=1;
+    if(DemarrerPartie(sock,coup,startToPlay)<0){
+        printf("Une erreur est survenue lors de la partie\n");
+        return -1;
     }
-    
+    startToPlay=!startToPlay;
+    nbPartie++;
+    if(DemarrerPartie(sock,coup,startToPlay)<0){
+        printf("Une erreur est survenue lors de la partie\n");
+        return -1;
+    }
+    printf("Fin du jeu\n");
 
     return 0;
 
@@ -459,21 +490,32 @@ int main(int argc, char** argv) {
     
 
       /* verification des arguments */
-    if (argc != 4) {
-        printf("usage : %s nom/IPServ port nomJOueur\n", argv[0]);
+    // if (argc != 4) {
+    //     printf("usage : %s nom/IPServ port nomJOueur\n", argv[0]);
+    //     return -1;
+    // }
+    if (argc != 3) {
+        printf("usage : %s nomJoueur port \n", argv[0]);
         return -1;
     }
-    char* nom = argv[3];
-    ipMachServ = argv[1]; //nomMachServ = argv[1];
+    char* nom = argv[1];
+    ipMachServ="127.0.0.1";
+    //ipMachServ = argv[1]; //nomMachServ = argv[1];
     port = atoi(argv[2]);
     sock = socketClient(ipMachServ,port);
-
+    
     if(sock<1){
         return -1;
     }
-    int couleur;
-    couleur = DemandePartie(sock, nom);
+    int couleur = DemandePartie(sock, nom);
+    if(couleur<0) return -1;
     Jouer(sock, couleur);
+
+    /* 
+    * fermeture de la connexion et de la socket 
+    */
+    shutdown(sock, SHUT_RDWR);
+    close(sock);
     
     return 0;
 
