@@ -24,12 +24,15 @@ int DemandePartie(int sock, char nom[TNOM]){
     TPartieReq reqPartie;
     int err;
     //char nomJoueur[TNOM] = nom;
+    char ch[12];
     
     reqPartie.idRequest = PARTIE;
     strcpy(reqPartie.nomJoueur,nom);
 
     printf("nom joueur : %s \n", reqPartie.nomJoueur);
     printf("id : %d \n", reqPartie.idRequest);
+    printf("Taper une touche pour envoyer la req partie\n");
+    scanf("%s",ch);
 
     err = send(sock, &reqPartie, sizeof(TPartieReq), 0);
     if (err <= 0) { 

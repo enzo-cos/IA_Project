@@ -20,68 +20,69 @@ struct Joueur
   char nomJoueur[32]; 
 };
 
+
+/**
+ * @brief Traite la requête partie d'un joueur
+ * 
+ * @param J Joueur conecerné
+ * @param req requête Partie
+ * @param cpt Numéro de connexion
+ * @return int code d'erreur
+ */
+int traiteReqPartie(struct Joueur *J, TPartieReq req ,int cpt){
+  int err=recv(J->sockTrans,&req,sizeof(TPartieReq),0);
+  if(err<=0){
+    perror("(serveurTCP) erreur dans la reception");
+    return err;
+  }
+  if(req.idRequest!=PARTIE) return -1;
+  if(cpt==1){
+    //Premier Reçu
+    J->couleur=BLANC;
+  }else{
+    J->couleur=NOIR;
+  }
+  strcpy(J->nomJoueur,req.nomJoueur);
+  printf("J%d : %s connected\n",cpt,J->nomJoueur);
+  return 0;
+}
 /**
  * @brief Attente des requêtes des joueurs
  * 
  * @param J1 Joueur 1
  * @param J2 Joueur 2
- * @param sockConx socket de communication
  * @return int code d'erreur
  */
-int AttenteReq(struct Joueur *J1, struct Joueur *J2,int sockConx){
+int AttenteReq(struct Joueur *J1, struct Joueur *J2){
   TPartieReq req;
   TPartieRep rep;
-  int err;
+  int err=0;
   fd_set readSet; 
    /* preparation du fd_set et select */
    int cpt=0;
   while(cpt<2){
     FD_ZERO(&readSet);
-    FD_SET(sockConx, &readSet);
     FD_SET(J1->sockTrans, &readSet);
     FD_SET(J2->sockTrans, &readSet);
     err = select(FD_SETSIZE, &readSet, NULL, NULL, NULL);
     //Traitement du select
     if (err < 0) {
       perror("(servSelect) error in select"); 
-      shutdown(J1->sockTrans, SHUT_RDWR); close(J1->sockTrans);
-      shutdown(J2->sockTrans, SHUT_RDWR); close(J2->sockTrans);
-      close(sockConx);
-      return -5;
+      return err;
     }
 
     if(err>=0){
       //Vérification de l'activité
       if (FD_ISSET(J1->sockTrans, &readSet)) { 
-        err=recv(J1->sockTrans,&req,sizeof(TPartieReq),0);
-        if(err<=0){
-          perror("(serveurTCP) erreur dans la reception");
-          shutdown(J1->sockTrans, SHUT_RDWR); close(J1->sockTrans);
-          return err;
-        }
-        printf("J1 connected\n");
         cpt++;
-        if(req.idRequest==PARTIE){
-
-          //J1->nomJoueur=req.nomJoueur;
-          strcpy(J1->nomJoueur,req.nomJoueur);
-          J1->couleur=BLANC;
-        }
-
+        err=traiteReqPartie(J1,req,cpt);
+        if(err<0) return err;
       }
+
       if(FD_ISSET(J2->sockTrans, &readSet)){
-        err=recv(J2->sockTrans,&req,sizeof(TPartieReq),0);
-        if(err<=0){
-          perror("(serveurTCP) erreur dans la reception");
-          shutdown(J2->sockTrans, SHUT_RDWR); close(J2->sockTrans);
-          return err;
-        }
-        printf("J2 connected\n");
         cpt++;
-        if(req.idRequest==PARTIE){
-         strcpy(J2->nomJoueur,req.nomJoueur);
-        J2->couleur=NOIR;
-        }
+        err=traiteReqPartie(J2,req,cpt);
+        if(err<0) return err;
       }
     }
   }
@@ -216,26 +217,15 @@ int LancerPartie(struct Joueur *J1, struct Joueur *J2){
 
 int main(int argc, char** argv) {
   int  sockConx,        /* descripteur socket connexion */
-       //sockJoueur1,       /* descripteur socket Joueur */
-       //sockJoueur2,       /* descripteur socket Joueur  */
        port;       /* numero de port */
-       //sizeAddr1,         /* taille de l'adresse d'une socket */
-       //sizeAddr2;        /* taille de l'adresse d'une socket */
 
-  //const int MAX_CL=2;
-
-  //struct sockaddr_in addJ1;	/* adresse de la socket client connectee */
-  //struct sockaddr_in addJ2;	/* adresse de la socket client connectee */
-
- // fd_set readSet;              /* variable pour le select */
   int err=0;    //code erreur
   int nbCl=0;     //nombre de client
-  //int nbCoup=0;   //nombre de coup
 
   //Joueur 1
   struct Joueur J1;
-  struct Joueur J2;
   //Joueur 2
+  struct Joueur J2;
 
   
   /*
@@ -245,7 +235,7 @@ int main(int argc, char** argv) {
     printf ("usage : %s port\n", argv[0]);
     return -1;
   }
-  
+
   port  = atoi(argv[1]);
 
   sockConx=socketServeur(port);
@@ -277,12 +267,21 @@ int main(int argc, char** argv) {
     }
     nbCl++;
 
-    err=AttenteReq(&J1,&J2,sockConx);
+    err=AttenteReq(&J1,&J2);
     if(err<0){
-      //ERROR
       printf("Error Attente Req main\n");
+      shutdown(J1.sockTrans, SHUT_RDWR); close(J1.sockTrans);
+      shutdown(J2.sockTrans, SHUT_RDWR); close(J2.sockTrans);
+      close(sockConx);
+      return -1;
     }
-    printf("Joueur 1 %s\n",J1.nomJoueur);
+    if(J1.couleur==NOIR){
+      //Si le J1 n'est pas le premier à avoir envoyé une requête
+      struct Joueur Tmp=J1;
+      J1=J2;
+      J2=Tmp;
+    }
+    
     err=LancerPartie(&J1,&J2);
     if(err<0){
       printf("Error LancerPartie main ou Fin partie\n");

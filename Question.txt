@@ -1,0 +1,8 @@
+Question : 
+Le joueur 1 (BLANC) est-il le premier qui se connecte au server ou bien celui qui envoie la requête partie en 1er ?
+
+Liste à faire : 
+Serveur : 
+- calculer le score et afficher après chaque partie
+- Faire timeOut
+- Ajouter les options de lancements 
