@@ -6,3 +6,13 @@ Serveur :
 - calculer le score et afficher après chaque partie
 - Faire timeOut
 - Ajouter les options de lancements 
+- Gérer les erreurs
+- Affichage propre fin de partie
+
+-Erreur sur TPartieRep
+Quand Doit-on renvoyer l'erreur ? dans quelles conditions
+Dans ce cas, stopper tout ?
+-Erreur sur TCoupRep
+Envoie du coup si requête Typ Incorrecte ??
+Dans ces cas, arrêter la partie ou continuer ?
+IMPORTANT : Est-ce à nous de changer la valeur de rep après validation Coup ? même de vérifier le type de la requête ??

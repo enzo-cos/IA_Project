@@ -18,6 +18,7 @@ struct Joueur
   TPion couleur;
   int sizeAddr;
   char nomJoueur[32]; 
+  int score;
 };
 
 
@@ -35,7 +36,7 @@ int traiteReqPartie(struct Joueur *J, TPartieReq req ,int cpt){
     perror("(serveurTCP) erreur dans la reception");
     return err;
   }
-  if(req.idRequest!=PARTIE) return -1;
+  if(req.idRequest!=PARTIE) return -8;
   if(cpt==1){
     //Premier Reçu
     J->couleur=BLANC;
@@ -83,6 +84,7 @@ int AttenteReq(struct Joueur *J1, struct Joueur *J2){
         cpt++;
         err=traiteReqPartie(J2,req,cpt);
         if(err<0) return err;
+        //if err==-8 -> rep.err=ERR_TYP
       }
     }
   }
@@ -111,11 +113,12 @@ int AttenteReq(struct Joueur *J1, struct Joueur *J2){
 }
 
 /**
- * @brief Fin de partie
+ * @brief Fin de partie et afficher les résultats
  * 
  */
-void finPartie(){
+void finPartie(struct Joueur *Jcoup, struct Joueur *Jadv,TCoupRep rep){
   printf("Fin de la partie .\n");
+  //Afficher les résultats
 }
 
 /**
@@ -143,46 +146,53 @@ int traiteCoup(struct Joueur *Jcoup,struct Joueur *Jadverse, int nJoueur1){
   }
   printf("Réception du coup de %s : %d\n",Jcoup->nomJoueur,req.typeCoup);
   printf("Coup des %d : %d\n",Jcoup->couleur,req.coul);
-  if(req.idRequest==COUP){
+  if(req.idRequest!=COUP){
+    //Error : rep.err=ERR_TYP, rep.validCoup ?
+    //Send ?
+  }else{
     //Vérification du coup
     if(!validationCoup(nj,req,&rep.propCoup)){
       //A faire après ??
-      rep.err=ERR_COUP;
+      //A nous d'initaliser cces valeurs ? pareil pour req.idRequest
+      rep.err=ERR_COUP; 
       rep.validCoup=TRICHE;
     }else{
       rep.err=ERR_OK;
       rep.validCoup=VALID;
     }
-    printf("FIN VALIDATION\n");
-    //Envoi de la réponse au joueur 
-    err=send(Jcoup->sockTrans,&rep,sizeof(TCoupRep),0);
-    if(err<=0){
-      perror("(serveur) erreur sur le send");
-      shutdown(Jcoup->sockTrans, SHUT_RDWR); close(Jcoup->sockTrans);
-      return err;
-    }
-    //Envoie de la réponse à l'adversaire
-    err=send(Jadverse->sockTrans,&rep,sizeof(TCoupRep),0);
-    if(err<=0){
-      perror("(serveur) erreur sur le send");
-      shutdown(Jadverse->sockTrans, SHUT_RDWR); close(Jadverse->sockTrans);
-      return err;
-    }
-
-    //Vérifier propCoup pour résultat
-    if(rep.propCoup!=CONT){
-      finPartie();
-      return 1;
-    }
-    //Si tout est valide, Envoie du coup à l'adversaire
-    err=send(Jadverse->sockTrans,&req,sizeof(TCoupReq),0);
-    if(err<=0){
-      perror("(serveur) erreur sur le send");
-      shutdown(Jadverse->sockTrans, SHUT_RDWR); close(Jadverse->sockTrans);
-      return err;
-    }
-    
   }
+  
+  //Envoi de la réponse au joueur 
+  err=send(Jcoup->sockTrans,&rep,sizeof(TCoupRep),0);
+  if(err<=0){
+    perror("(serveur) erreur sur le send");
+    shutdown(Jcoup->sockTrans, SHUT_RDWR); close(Jcoup->sockTrans);
+    return err;
+  }
+  //Envoie de la réponse à l'adversaire
+  err=send(Jadverse->sockTrans,&rep,sizeof(TCoupRep),0);
+  if(err<=0){
+    perror("(serveur) erreur sur le send");
+    shutdown(Jadverse->sockTrans, SHUT_RDWR); close(Jadverse->sockTrans);
+    return err;
+  }
+
+  //Vérifier propCoup pour résultat
+  if(rep.propCoup!=CONT){
+    finPartie(Jcoup,Jadverse,rep);
+    return 1;
+  }
+  //Envoie du coup si requête Typ Incorrecte ??
+
+  //Si tout est valide, Envoie du coup à l'adversaire
+  err=send(Jadverse->sockTrans,&req,sizeof(TCoupReq),0);
+  if(err<=0){
+    perror("(serveur) erreur sur le send");
+    shutdown(Jadverse->sockTrans, SHUT_RDWR); close(Jadverse->sockTrans);
+    return err;
+  }
+    
+  
   return 0;
 }
 
@@ -281,6 +291,9 @@ int main(int argc, char** argv) {
       J1=J2;
       J2=Tmp;
     }
+    //Initialisation des scores
+    J1.score=0;
+    J2.score=0;
     
     err=LancerPartie(&J1,&J2);
     if(err<0){
