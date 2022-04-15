@@ -117,8 +117,18 @@ int AttenteReq(struct Joueur *J1, struct Joueur *J2){
  * 
  */
 void finPartie(struct Joueur *Jcoup, struct Joueur *Jadv,TCoupRep rep){
-  printf("Fin de la partie .\n");
+  printf("Fin de la partie.\n");
+  if(rep.propCoup==GAGNE){
+    printf("Match terminé !\nLe joueur %s gagne la partie.\n",Jcoup->nomJoueur);
+    Jcoup->score+=1;
+  }else if(rep.propCoup==PERDU){
+    printf("Match terminé !\nLe joueur %s gagne la partie.\n",Jadv->nomJoueur);
+    Jadv->score+=1;
+  }else if(rep.propCoup==NULLE){
+    printf("Match terminé !\nEgalité entre les deux joueurs.\n");
+  }
   //Afficher les résultats
+  printf("Tableaux des scores : \n%s : %d\n%s : %d\n",Jcoup->nomJoueur,Jcoup->score,Jadv->nomJoueur,Jadv->score);
 }
 
 /**
@@ -154,6 +164,7 @@ int traiteCoup(struct Joueur *Jcoup,struct Joueur *Jadverse, int nJoueur1){
     if(!validationCoup(nj,req,&rep.propCoup)){
       //A faire après ??
       //A nous d'initaliser cces valeurs ? pareil pour req.idRequest
+      //4 pions même case : Valeur non correctes avant
       rep.err=ERR_COUP; 
       rep.validCoup=TRICHE;
     }else{
@@ -206,8 +217,8 @@ int traiteCoup(struct Joueur *Jcoup,struct Joueur *Jadverse, int nJoueur1){
 int LancerPartie(struct Joueur *J1, struct Joueur *J2){
   int err;
   int nbJoueur1=J1->couleur+1;
-  printf("J1 : %s - %d\n",J1->nomJoueur,J1->couleur);
-  printf("J2 : %s - %d\n",J2->nomJoueur,J2->couleur);
+  // printf("J1 : %s - %d\n",J1->nomJoueur,J1->couleur);
+  // printf("J2 : %s - %d\n",J2->nomJoueur,J2->couleur);
 
   initialiserPartie();
   while(1){

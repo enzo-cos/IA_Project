@@ -3,11 +3,12 @@ Le joueur 1 (BLANC) est-il le premier qui se connecte au server ou bien celui qu
 
 Liste à faire : 
 Serveur : 
-- calculer le score et afficher après chaque partie
+- calculer le score et afficher après chaque partie //DONE
 - Faire timeOut
 - Ajouter les options de lancements 
 - Gérer les erreurs
-- Affichage propre fin de partie
+- Affichage propre fin de partie //DONE
+Envoie du coup si requête Typ Incorrecte ??
 
 -Erreur sur TPartieRep
 Quand Doit-on renvoyer l'erreur ? dans quelles conditions
