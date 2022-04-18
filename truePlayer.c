@@ -31,8 +31,9 @@ int DemandePartie(int sock, char nom[TNOM]){
 
     printf("nom joueur : %s \n", reqPartie.nomJoueur);
     printf("id : %d \n", reqPartie.idRequest);
-    printf("Taper une touche pour envoyer la req partie\n");
-    scanf("%s",ch);
+
+  //  printf("Taper une touche pour envoyer la req partie\n");
+    //scanf("%s",ch);
 
     err = send(sock, &reqPartie, sizeof(TPartieReq), 0);
     if (err <= 0) { 
@@ -256,7 +257,6 @@ int ChoisirCoup(TCoupReq *coup){
     bool Bdepl=false;
     char chaine[20];
     int nL=-1;
-
     printf("Choisir P(Position) D(Déplacement) ou S(Passe) \n ");
     scanf("%s",chaine);
     switch (chaine[0]){
@@ -360,6 +360,117 @@ int ChoisirCoup(TCoupReq *coup){
     return 0;
 }
 
+
+int EnvoieIA(int sockIA, TCoupReq *coup ){
+    int err=0;
+    //Envoie typeCoup
+    int n=htonl(coup->typeCoup);
+    err = send(sockIA,&n,sizeof(int),0);
+    if (err <= 0) {
+        perror("erreur dans l'envoie du typeCoup");
+        shutdown(sockIA, SHUT_RDWR); close(sockIA);
+        return -1;
+    }
+    //if depl
+    n=htonl(coup->action.posPion.lg);
+    err = send(sockIA,&n,sizeof(int),0);
+    if (err <= 0) {
+        perror("erreur dans l'envoie de la ligne");
+        shutdown(sockIA, SHUT_RDWR); close(sockIA);
+        return -2;
+    }
+    n=htonl(coup->action.posPion.col);
+    err = send(sockIA,&n,sizeof(int),0);
+    if (err <= 0) {
+        perror("erreur dans l'envoie de la colonne");
+        shutdown(sockIA, SHUT_RDWR); close(sockIA);
+        return -3;
+    }
+    //envoie couleur
+    n=htonl(coup->coul);
+    err = send(sockIA,&n,sizeof(int),0);
+    if (err <= 0) {
+        perror("erreur dans l'envoie de la couleur");
+        shutdown(sockIA, SHUT_RDWR); close(sockIA);
+        return -4;
+    }
+
+    return 0;
+}
+
+int RecevoirIA(int sockIA, TCoupReq *coup){
+    int err=0;
+    int tc=0,l=0,c=0,lD=0,cD=0;
+       printf("Attente du coup\n");
+    //     coup->action.posPion.col = A;
+    // coup->action.posPion.lg = DEUX;
+    // coup->typeCoup = POS_PION;
+
+    // //Recevoir typeCoup (Pos, Depl, passe)
+    //printf("Recevoir typeCoup \n");
+    while(err!=sizeof(int)){
+        err = recv(sockIA,&tc,sizeof(int),MSG_PEEK);
+        if (err <= 0) {
+            perror("erreur dans la reception");
+            shutdown(sockIA, SHUT_RDWR); close(sockIA);
+            return -6;
+        }
+    }
+    err = recv(sockIA,&tc,sizeof(int),0);
+    if (err <= 0) {
+        perror("erreur dans la reception");
+        shutdown(sockIA, SHUT_RDWR); close(sockIA);
+        return -6;
+    }
+    coup->typeCoup=ntohl(tc);
+    //if depl
+    printf("reçu typeCoup : %d\n",coup->typeCoup);
+    //if
+    //Recevoir Position : 
+    //action.posPion.ligne : 
+    printf("Recevoir ligne \n");
+        while(err!=sizeof(int)){
+            err = recv(sockIA,&l,sizeof(int),MSG_PEEK);
+            if (err <= 0) {
+                perror("erreur dans la reception");
+                shutdown(sockIA, SHUT_RDWR); close(sockIA);
+                return -6;
+            }
+        }
+        err = recv(sockIA,&l,sizeof(int),0);
+        if (err <= 0) {
+            perror("erreur dans la reception");
+            shutdown(sockIA, SHUT_RDWR); close(sockIA);
+            return -6;
+        }
+        l=ntohl(l);
+        coup->action.posPion.lg=l;
+        printf("reçu ligne : %d \n",coup->action.posPion.lg);
+    //action.posPion.colonne : 
+
+    printf("Recevoir colonne \n");
+    //int nb1;
+        while(err!=sizeof(int)){
+            err = recv(sockIA,&c,sizeof(int),MSG_PEEK);
+            if (err <= 0) {
+                perror("erreur dans la reception");
+                shutdown(sockIA, SHUT_RDWR); close(sockIA);
+                return -6;
+            }
+        }
+        err = recv(sockIA,&c,sizeof(int),0);
+        if (err <= 0) {
+            perror("erreur dans la reception");
+            shutdown(sockIA, SHUT_RDWR); close(sockIA);
+            return -6;
+        }
+        c=ntohl(c);
+        coup->action.posPion.col=c;
+        printf("reçu colonne : %d \n",coup->action.posPion.col);
+    //     /*********** FIN Recevoir Entier ***************/
+    return 0;
+}
+
 /**
  * @brief Envoie d'un coup
  * 
@@ -369,12 +480,24 @@ int ChoisirCoup(TCoupReq *coup){
  */
 int EnvoieCoup(int sock, TCoupReq coup){
     int err=0;
-    err=ChoisirCoup(&coup);
-        if(err<0) printf("Erreur Choix Coup\n");
-
+    //err=ChoisirCoup(&coup);
+       // if(err<0) printf("Erreur Choix Coup\n");
+    printf("Coup :\nligne %d, colonne %d\n",coup.action.posPion.lg,coup.action.posPion.col);
+    if(coup.action.posPion.col>10){
+        coup.action.posPion.col=htonl(coup.action.posPion.col);
+        printf("new col : %d\n",coup.action.posPion.col);
+    }
+    if(coup.action.posPion.lg>10){
+        coup.action.posPion.lg=htonl(coup.action.posPion.lg);
+        printf("new lg : %d\n",coup.action.posPion.lg);
+    }
+    if(coup.typeCoup>10){
+        coup.typeCoup=htonl(coup.typeCoup);
+        printf("new Type : %d\n",coup.typeCoup);
+    }
     err =  send(sock, &coup, sizeof(TCoupReq), 0);
     if (err <= 0) { 
-        perror("(client) erreur sur le send PremierCoup");
+        perror("(client) erreur sur le send Coup");
         //fermeture socket après
         return -1;
     }
@@ -399,7 +522,7 @@ int EnvoieCoup(int sock, TCoupReq coup){
  * @param coup Requête coup
  * @return int Code d'erreur, =0 si OK, <0 si Erreur, >0 si fin de partie
  */
-int RecevoirEtEnvoyerCoup(int sock, TCoupReq coup){
+int RecevoirEtEnvoyerCoup(int sock, TCoupReq coup, int sockIA){
     int err=0;
     
     TCoupRep repAdv;
@@ -420,9 +543,9 @@ int RecevoirEtEnvoyerCoup(int sock, TCoupReq coup){
         //fermeture socket après
         return -2;
     }
-
+    EnvoieIA(sockIA, &coupAdv);
     RequeteADV(coupAdv);
-    
+    err=RecevoirIA(sockIA,&coup);
     err=EnvoieCoup(sock,coup);
     
     return err;
@@ -436,13 +559,23 @@ int RecevoirEtEnvoyerCoup(int sock, TCoupReq coup){
  * @param startToPlay  booleen, vrai si le joueur effectue le premier coup, faux sinon
  * @return int 
  */
-int DemarrerPartie(int sock, TCoupReq coup, bool startToPlay){
+int DemarrerPartie(int sock, TCoupReq coup, bool startToPlay, int sockIA){
     int err=0;
     //Premier coup de la partie
+    printf("Premier coup\n");
+    if(startToPlay) err=RecevoirIA(sockIA,&coup);
     if(startToPlay) err=EnvoieCoup(sock,coup);
-
+    printf("Fin Premier coup\n");
     while(err==0){
-        err=RecevoirEtEnvoyerCoup(sock,coup);
+        err=RecevoirEtEnvoyerCoup(sock,coup, sockIA);
+    }
+    //Contacter l'IA pour signifier la fin de la partie
+    int n=4;
+    n=htonl(n);
+    err=send(sockIA,&n,sizeof(int),0);
+    if(err<0){
+        perror("Erreur Envoie Fin de partie");
+        return err;
     }
     printf("Fin Partie numéro %d\n",nbPartie);
     return err;
@@ -455,7 +588,7 @@ int DemarrerPartie(int sock, TCoupReq coup, bool startToPlay){
  * @param couleur couleur du joueur
  * @return int code d'erreur
  */
-int Jouer(int sock, int couleur){
+int Jouer(int sock, int couleur, int sockIA){
     TCoupReq coup;
     bool startToPlay = false; 
    // coup par défault
@@ -467,21 +600,117 @@ int Jouer(int sock, int couleur){
     //char chaine[20];
     if(couleur==BLANC) startToPlay=true;
     nbPartie=1;
-    if(DemarrerPartie(sock,coup,startToPlay)<0){
+    if(DemarrerPartie(sock,coup,startToPlay, sockIA)<0){
         printf("Une erreur est survenue lors de la partie\n");
         return -1;
     }
     startToPlay=!startToPlay;
     nbPartie++;
-    if(DemarrerPartie(sock,coup,startToPlay)<0){
+    if(DemarrerPartie(sock,coup,startToPlay,sockIA)<0){
         printf("Une erreur est survenue lors de la partie\n");
         return -1;
     }
     printf("Fin du jeu\n");
 
     return 0;
-
 }
+
+void ConnectIA(int *sockIA, int port, int couleur){
+    //Faire Connexion avec l'IA, Après avoir fais la demande de partie pour couleur
+     if(1==1){
+        struct sockaddr_in addClient;	/* adresse de la socket client connectee */
+        int err=0;
+        int sockConx;
+        sockConx=socketServeur(port+((couleur+1)*10));
+        if(sockConx<1){ 
+            return ;
+        }
+        int sizeAddr = sizeof(struct sockaddr_in);
+        *sockIA = accept(sockConx, 
+                    (struct sockaddr *)&addClient, 
+                    (socklen_t *)&sizeAddr);
+        if (*sockIA < 0) {
+            perror(" erreur sur accept Connexion avec l'IA");
+            return ;
+        }
+        couleur=htonl(couleur);
+        err = send(*sockIA,&couleur,sizeof(int),0);
+        if (err <= 0) {
+            perror("erreur dans l'envoie de la couleur");
+            shutdown(*sockIA, SHUT_RDWR); close(*sockIA);
+            return ;
+        }
+        //*************** FIN Connexion ***********************
+
+        /*********** Recevoir Entier ***************/
+        //printf("Attente du coup\n");
+    //     coup.action.posPion.col = A;
+    // coup.action.posPion.lg = DEUX;
+    // coup.coul  = couleur;
+    // coup.idRequest = COUP;
+    // coup.typeCoup = POS_PION;
+
+    //Recevoir typeCoup (Pos, Depl, passe)
+    // printf("Recevoir typeCoup \n");
+    // while(err!=sizeof(int)){
+    //     err = recv(sockIA,&nb,sizeof(int),MSG_PEEK);
+    //     if (err <= 0) {
+    //         perror("erreur dans la reception");
+    //         shutdown(sockIA, SHUT_RDWR); close(sockIA);
+    //         return -6;
+    //     }
+    // }
+    // err = recv(sockIA,&nb,sizeof(int),0);
+    // if (err <= 0) {
+    //     perror("erreur dans la reception");
+    //     shutdown(sockIA, SHUT_RDWR); close(sockIA);
+    //     return -6;
+    // }
+    // nb=ntohl(nb);
+    //  printf("reçu nb : %d\n",nb);
+    //if
+    //Recevoir Position : 
+    // action.posPion.ligne : 
+    // printf("Recevoir ligne \n");
+    //     while(err!=sizeof(int)){
+    //         err = recv(sockIA,&nb,sizeof(int),MSG_PEEK);
+    //         if (err <= 0) {
+    //             perror("erreur dans la reception");
+    //             shutdown(sockIA, SHUT_RDWR); close(sockIA);
+    //             return -6;
+    //         }
+    //     }
+    //     err = recv(sockIA,&nb,sizeof(int),0);
+    //     if (err <= 0) {
+    //         perror("erreur dans la reception");
+    //         shutdown(sockIA, SHUT_RDWR); close(sockIA);
+    //         return -6;
+    //     }
+    //     nb=ntohl(nb);
+    //     printf("reçu nb : %d\n",nb);
+    // action.posPion.colonne : 
+
+    // printf("Recevoir colonne \n");
+    //     while(err!=sizeof(int)){
+    //         err = recv(sockIA,&nb,sizeof(int),MSG_PEEK);
+    //         if (err <= 0) {
+    //             perror("erreur dans la reception");
+    //             shutdown(sockIA, SHUT_RDWR); close(sockIA);
+    //             return -6;
+    //         }
+    //     }
+    //     err = recv(sockIA,&nb,sizeof(int),0);
+    //     if (err <= 0) {
+    //         perror("erreur dans la reception");
+    //         shutdown(sockIA, SHUT_RDWR); close(sockIA);
+    //         return -6;
+    //     }
+    //     nb=ntohl(nb);
+    //     printf("reçu nb : %d\n",nb);
+        /*********** FIN Recevoir Entier ***************/
+    }
+}
+
 
 int main(int argc, char** argv) {
 
@@ -510,9 +739,12 @@ int main(int argc, char** argv) {
     if(sock<1){
         return -1;
     }
+    
     int couleur = DemandePartie(sock, nom);
     if(couleur<0) return -1;
-    Jouer(sock, couleur);
+    int sockIA;
+    ConnectIA(&sockIA, port, couleur);
+    Jouer(sock, couleur, sockIA);
 
     /* 
     * fermeture de la connexion et de la socket 

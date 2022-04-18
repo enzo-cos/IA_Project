@@ -5,7 +5,7 @@
 #########
 LD_FLAGS =
 
-all: serveur truePlayer
+all: serveur truePlayer IA
 
 serveur: serveur.c fonctionsTCP.o fctServ.o colonne.o
 	gcc -Wall serveur.c -o serveur fonctionsTCP.o fctServ.o colonne.o $(LD_FLAGS)
@@ -21,6 +21,9 @@ fctServ.o : fctServ.c
 
 validation.o : validation.c
 	gcc -Wall validation.c -o validation.o -c  $(LD_FLAGS)
+
+IA : IA.java
+	javac IA.java
 
 clean:
 	rm *~ ; rm -i \#* ; rm *.o; \
