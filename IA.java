@@ -7,37 +7,26 @@ public class IA {
 
     static void UpdatePlateau(Plateau plateau, int typeCoup, int ligne, int colonne,int lDepart, int colDepart, int joueur){
         if(typeCoup==1) plateau.retirerPion(lDepart, colDepart, joueur);
-        System.out.println("up l +"+ligne+", c +"+colonne);
         plateau.ajouterPion(ligne, colonne, joueur);
-        //Else : passe
+        System.out.println("Affichage du plateau : \n"+plateau);
     }
 
     static int EnvoyerCoup(Socket sock, Plateau plateau, int joueur,DataOutputStream oos){
         int typeCoup,ligne,colonne;
         typeCoup=colonne=0;
         ligne=2;
-        int lDepart=-1, colDepart=-1;
+        int lDepart=0, colDepart=0;
 
         try{
-			// OutputStream os = sock.getOutputStream();
-			// DataOutputStream oos = new DataOutputStream(os);
-            System.out.println("envoie typeCoup : "+typeCoup);
             oos.writeInt(typeCoup);//typeCoup
             if(typeCoup==1){
-                System.out.println("Depl");
                 oos.writeInt(lDepart);
                 oos.writeInt(colDepart);
             }else if(typeCoup==2) return 1; //Passe
-            System.out.println("envoie Ligne : "+ligne);
 			oos.writeInt(ligne);//ligne
-            System.out.println("envoie colonne : "+colonne);
 			oos.writeInt(colonne);//colonne
             System.out.println(" coup Envoyé : \nType Coup : "+typeCoup+",Ligne : "+ligne+", Colonne : "+colonne+"\n");
-
-            //UpdatePlateau(plateau, typeCoup, ligne, colonne, lDepart, colDepart, joueur);
-
-            // os.close();
-            // oos.close();
+            UpdatePlateau(plateau, typeCoup, ligne, colonne, lDepart, colDepart, joueur);
 		} catch (IOException e) {
 		    System.out.println("IO exception1" + e);
 		}catch (Exception e){
@@ -50,8 +39,6 @@ public class IA {
         int typeCoup,ligne,colonne;
         int lDepart=-1, colDepart=-1;
         try{
-            // InputStream is = sock.getInputStream();
-			// DataInputStream dis = new DataInputStream(is);
             //Recevoir typeCoup
             typeCoup=dis.readInt();
             if(typeCoup==2) return 1; //Passe
@@ -66,11 +53,9 @@ public class IA {
             }
             ligne=dis.readInt();
             colonne=dis.readInt();
-            System.out.println("Réception coup : \nType Coup : "+typeCoup+",Ligne : "+ligne+", Colonne : "+colonne+"\n");
             joueur=dis.readInt()+1;//couleur
+            System.out.println("Réception coup : \nType Coup : "+typeCoup+",Ligne : "+ligne+", Colonne : "+colonne+" Jooueur : "+joueur+"\n");
             UpdatePlateau(plateau, typeCoup, ligne, colonne, lDepart, colDepart, joueur);
-            // is.close();
-            // dis.close();
 		} catch (IOException e) {
 		    System.out.println("IO exception2" + e);
 		}catch (Exception e){
@@ -83,11 +68,8 @@ public class IA {
     public static int RecevoirCouleur(Socket sock,DataInputStream dis){
         int res=-1;
         try{
-            // InputStream is = sock.getInputStream();
-            // DataInputStream dis = new DataInputStream(is);
             res=dis.readInt()+1;
-            // is.close();
-            // dis.close();
+
         } catch (IOException e) {
             System.out.println("IO exception" + e);
         }catch (Exception e){
@@ -130,17 +112,20 @@ public class IA {
                 err=RecevoirCoup(socket, plateau, advJoueur,dis);
                 if(err==3){
                     //Fin parti
+                    System.out.println("Plateau fin de partie : \n"+plateau);
                     break;
                 }
                 err=EnvoyerCoup(socket,plateau,myJoueur,oos);
             }
             //Deuxième partie
             System.out.println("Deuxième Partie");
+            plateau.clear();
             if(myJoueur==2) err=EnvoyerCoup(socket,plateau,myJoueur,oos);
             while(true){
                 err=RecevoirCoup(socket, plateau, advJoueur,dis);
                 if(err==3){
                     //Fin parti
+                    System.out.println("Plateau fin de partie : \n"+plateau);
                     break;
                 }
                 err=EnvoyerCoup(socket,plateau,myJoueur,oos);
@@ -152,18 +137,7 @@ public class IA {
 		} catch (Exception e){
 			System.out.println("Exception" + e);
 		}
-        
-
-        //Création plateau
-        //Ligne 0,1,2 | Colonne 0(A),1(B),2(C)
-        
-        plateau.ajouterPion(1, 1, 1);
-        plateau.ajouterPion(1, 1, 2);
-        plateau.ajouterPion(1, 1, 1);
-        plateau.ajouterPion(1, 2, 2);
-        plateau.ajouterPion(2, 1, 1);plateau.ajouterPion(2, 1, 1);
-        System.out.println(plateau);
-
+    
     }
 }
 
@@ -239,6 +213,14 @@ class Plateau{
     public Plateau(){
         plateau = new Case[taille][taille];
         //utile ?
+        for(int i=0;i<taille;i++){
+            for(int j=0;j<taille;j++){
+                plateau[i][j]=new Case(i, j);
+            }
+        }
+    }
+
+    public void clear(){
         for(int i=0;i<taille;i++){
             for(int j=0;j<taille;j++){
                 plateau[i][j]=new Case(i, j);
