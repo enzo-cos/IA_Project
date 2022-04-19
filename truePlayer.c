@@ -76,13 +76,13 @@ bool ReponseCoup(TCoupRep repCoup, int moi){
             
             if(moi ==0){
                 switch (repCoup.validCoup) {
-                    case 0 :
+                    case VALID :
                         printf("Coup valide \n");
                         break;
-                    case 1 : 
+                    case TIMEOUT : 
                         printf("Coup timeout \n");
                         break;
-                    case 2 : 
+                    case TRICHE : 
                         printf("Coup triche \n");
                         break;
                     default:
@@ -90,18 +90,18 @@ bool ReponseCoup(TCoupRep repCoup, int moi){
                 }
             
                 switch (repCoup.propCoup) {
-                    case 0 :
-                        printf("Continiue\n");
+                    case CONT :
+                        printf("Continue\n");
                         break;
-                    case 1 : 
+                    case GAGNE : 
                         premiereManche =false;
                         printf("vous avez gagné \n");
                         break;
-                    case 2 : 
+                    case NULLE : 
                         premiereManche =false; 
                         printf("Match Nulle \n");
                         break;
-                    case 3 : 
+                    case PERDU : 
                         premiereManche =false; 
                         printf("Vous avez Perdu \n");
                         break;
@@ -109,16 +109,15 @@ bool ReponseCoup(TCoupRep repCoup, int moi){
                 }
             }else{
                 switch (repCoup.validCoup) {
-                    case 0 :
+                    case VALID :
                        
                         printf("Le coup de l'adversaire est valide \n");
                         break;
-                    case 1 : 
+                    case TIMEOUT : 
                         
                         printf("Le coup de l'adversaire est timeout \n");
                         break;
-                    case 2 : 
-                       
+                    case TRICHE : 
                         printf("Le coup de l'adversaire est triche \n");
                         break;
                     default:
@@ -126,24 +125,23 @@ bool ReponseCoup(TCoupRep repCoup, int moi){
                 }
             
                 switch (repCoup.propCoup) {
-                    case 0 :
-                        printf("La partie Continiue\n");
+                    case CONT :
+                        printf("La partie Continue\n");
                         break;
-                    case 1 : 
+                    case GAGNE : 
                        premiereManche =false;
                         printf("l'adversaire a gagné vous avez perdu \n");
                         break;
-                    case 2 : 
+                    case NULLE : 
                        premiereManche =false;
                         printf("Match Nulle \n");
                         break;
-                    case 3 : 
+                    case PERDU : 
                         premiereManche =false;
                         printf("l'adversaire a Perdu vous avez gagné \n");
                         break;
                 
                 }
-
 
             }
             return  premiereManche;

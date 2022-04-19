@@ -18,5 +18,4 @@ Envoie du coup si requête Typ Incorrecte ??
 Dans ces cas, arrêter la partie ou continuer ?
 IMPORTANT : Est-ce à nous de changer la valeur de rep après validation Coup ? même de vérifier le type de la requête ??
 
-timeOut avec Select, thread ou non bloquante ?
-timeOut ==> propCoup=PERDU?
+Parti fini, Pas d'envoie du dernier coup à l'adversaire ?

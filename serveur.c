@@ -148,15 +148,13 @@ int traiteCoup(struct Joueur *Jcoup,struct Joueur *Jadverse, int nJoueur1){
   //Joueur 1 ou 2 pour validation
   int nj=2;
   if(Jcoup->couleur+1==nJoueur1) nj=1;
-  struct timeval timev = {6, 0};
   printf("Attente du coup de %s\n",Jcoup->nomJoueur);
   if(isTimeOut){
-    // clock_t endwait;
-    // endwait = clock () + 6 * CLOCKS_PER_SEC ;
+    int nbSeconds=6;
+    struct timeval timev = {nbSeconds, 0};
     fd_set readSet; 
     FD_ZERO(&readSet);
     FD_SET(Jcoup->sockTrans, &readSet);
-    //printf("select\n");
     err = select(FD_SETSIZE, &readSet, NULL, NULL, &timev);
     //Traitement du select
     if (err < 0) {
@@ -165,7 +163,7 @@ int traiteCoup(struct Joueur *Jcoup,struct Joueur *Jadverse, int nJoueur1){
     }
     if(err>=0){
       //Vérification de l'activité
-      if (FD_ISSET(Jcoup->sockTrans, &readSet)) { 
+      if(FD_ISSET(Jcoup->sockTrans, &readSet)) { 
         //Réception du coup
         err=recv(Jcoup->sockTrans,&req,sizeof(TCoupReq),0);
         if(err<=0){
@@ -175,6 +173,7 @@ int traiteCoup(struct Joueur *Jcoup,struct Joueur *Jadverse, int nJoueur1){
         }
         printf("Réception du coup de %s : %d\n",Jcoup->nomJoueur,req.typeCoup);
         printf("Coup des %d : %d\n",Jcoup->couleur,req.coul);
+
       }else timeOut=true;
     }
 
@@ -196,7 +195,7 @@ int traiteCoup(struct Joueur *Jcoup,struct Joueur *Jadverse, int nJoueur1){
       rep.validCoup=TIMEOUT;
       rep.err=ERR_COUP;
   }else if(req.idRequest!=COUP){
-    printf("Erreur de type de la requête\n");
+    printf("Erreur type de requête\n");
     rep.err=ERR_TYP;
     rep.propCoup=PERDU;
   }else{
@@ -207,6 +206,7 @@ int traiteCoup(struct Joueur *Jcoup,struct Joueur *Jadverse, int nJoueur1){
       //4 pions même case : Valeur non correctes avant
       if(Jcoup->couleur==NOIR) printf("Le coup joué par les NOIRS est INVALIDE\n");
       else printf("Le coup joué par les BLANCS est INVALIDE\n");
+
       rep.err=ERR_COUP; 
       rep.validCoup=TRICHE;
     }else{
