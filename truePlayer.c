@@ -131,7 +131,7 @@ bool ReponseCoup(TCoupRep repCoup, int moi){
                         break;
                     case 1 : 
                        premiereManche =false;
-                        printf("l'adversaire à gagné vous avez perdu \n");
+                        printf("l'adversaire a gagné vous avez perdu \n");
                         break;
                     case 2 : 
                        premiereManche =false;
@@ -139,7 +139,7 @@ bool ReponseCoup(TCoupRep repCoup, int moi){
                         break;
                     case 3 : 
                         premiereManche =false;
-                        printf("l'adversaire à Perdu vous avez gagné \n");
+                        printf("l'adversaire a Perdu vous avez gagné \n");
                         break;
                 
                 }
@@ -360,7 +360,13 @@ int ChoisirCoup(TCoupReq *coup){
     return 0;
 }
 
-
+/**
+ * @brief Envoie du coup jouer par l'adversaire à l'IA
+ * 
+ * @param sockIA socket de communication avec l'IA
+ * @param coup  coup de l'avdersaire
+ * @return int  Code d'erreur
+ */
 int EnvoieIA(int sockIA, TCoupReq *coup ){
     int err=0;
     //Envoie typeCoup
@@ -371,20 +377,44 @@ int EnvoieIA(int sockIA, TCoupReq *coup ){
         shutdown(sockIA, SHUT_RDWR); close(sockIA);
         return -1;
     }
-    //if depl
-    n=htonl(coup->action.posPion.lg);
+
+    if(coup->typeCoup==DEPL_PION){
+        //Envoie case départ Ligne
+        n=htonl(coup->action.deplPion.caseDep.lg);
+        err = send(sockIA,&n,sizeof(int),0);
+        if (err <= 0) {
+            perror("erreur dans l'envoie de la ligne");
+            shutdown(sockIA, SHUT_RDWR); close(sockIA);
+            return -2;
+        }
+        //Envoie case départ Colonne
+        n=htonl(coup->action.deplPion.caseDep.col);
+        err = send(sockIA,&n,sizeof(int),0);
+        if (err <= 0) {
+            perror("erreur dans l'envoie de la ligne");
+            shutdown(sockIA, SHUT_RDWR); close(sockIA);
+            return -2;
+        }
+    }else if(coup->typeCoup==PASSE){
+        return 1;
+    }
+    //Envoie Ligne arrivée
+    if(coup->typeCoup==DEPL_PION) n=htonl(coup->action.deplPion.caseArr.lg);
+    else n=htonl(coup->action.posPion.lg);
     err = send(sockIA,&n,sizeof(int),0);
     if (err <= 0) {
         perror("erreur dans l'envoie de la ligne");
         shutdown(sockIA, SHUT_RDWR); close(sockIA);
-        return -2;
+        return -3;
     }
-    n=htonl(coup->action.posPion.col);
+    //Envoie Colonne arrivée
+    if(coup->typeCoup==DEPL_PION) n=htonl(coup->action.deplPion.caseArr.col);
+    else n=htonl(coup->action.posPion.col);
     err = send(sockIA,&n,sizeof(int),0);
     if (err <= 0) {
         perror("erreur dans l'envoie de la colonne");
         shutdown(sockIA, SHUT_RDWR); close(sockIA);
-        return -3;
+        return -4;
     }
     //envoie couleur
     n=htonl(coup->coul);
@@ -392,12 +422,19 @@ int EnvoieIA(int sockIA, TCoupReq *coup ){
     if (err <= 0) {
         perror("erreur dans l'envoie de la couleur");
         shutdown(sockIA, SHUT_RDWR); close(sockIA);
-        return -4;
+        return -5;
     }
 
     return 0;
 }
 
+/**
+ * @brief Recevoir le Coup par l'IA
+ * 
+ * @param sockIA socket de communication avec l'IA
+ * @param coup   coup à jouer
+ * @return int code d'erreur
+ */
 int RecevoirIA(int sockIA, TCoupReq *coup){
     int tc,l,c,lD,cD; //TypeCoup, Ligne, Colonne, LigneDépart, ColonneDépart
     int nb=0;
@@ -525,18 +562,6 @@ int EnvoieCoup(int sock, TCoupReq coup){
     //err=ChoisirCoup(&coup);
        // if(err<0) printf("Erreur Choix Coup\n");
     printf("Coup :\nligne %d, colonne %d\n",coup.action.posPion.lg,coup.action.posPion.col);
-    if(coup.action.posPion.col>10){
-        coup.action.posPion.col=htonl(coup.action.posPion.col);
-        printf("new col : %d\n",coup.action.posPion.col);
-    }
-    if(coup.action.posPion.lg>10){
-        coup.action.posPion.lg=htonl(coup.action.posPion.lg);
-        printf("new lg : %d\n",coup.action.posPion.lg);
-    }
-    if(coup.typeCoup>10){
-        coup.typeCoup=htonl(coup.typeCoup);
-        printf("new Type : %d\n",coup.typeCoup);
-    }
     err =  send(sock, &coup, sizeof(TCoupReq), 0);
     if (err <= 0) { 
         perror("(client) erreur sur le send Coup");
@@ -560,9 +585,10 @@ int EnvoieCoup(int sock, TCoupReq coup){
 /**
  * @brief Recevoir le coup de l'adversaire et envoyer son coup
  * 
- * @param sock socket de communication
- * @param coup Requête coup
- * @return int Code d'erreur, =0 si OK, <0 si Erreur, >0 si fin de partie
+ * @param sock   socket de communication avec le serveur
+ * @param coup   Requête coup
+ * @param sockIA socket de communication avec l'IA
+ * @return int   Code d'erreur, =0 si OK, <0 si Erreur, >0 si fin de partie
  */
 int RecevoirEtEnvoyerCoup(int sock, TCoupReq coup, int sockIA){
     int err=0;
@@ -598,9 +624,10 @@ int RecevoirEtEnvoyerCoup(int sock, TCoupReq coup, int sockIA){
 /**
  * @brief Démarrer une partie
  * 
- * @param sock socket de communication
- * @param coup Requête coup
+ * @param sock         socket de communication
+ * @param coup         Requête coup
  * @param startToPlay  booleen, vrai si le joueur effectue le premier coup, faux sinon
+ * @param sockIA       socket de communication avec l'IA
  * @return int 
  */
 int DemarrerPartie(int sock, TCoupReq coup, bool startToPlay, int sockIA){
@@ -630,8 +657,9 @@ int DemarrerPartie(int sock, TCoupReq coup, bool startToPlay, int sockIA){
 /**
  * @brief Démarrer le jeu
  * 
- * @param sock socket de communication
+ * @param sock    socket de communication
  * @param couleur couleur du joueur
+ * @param sockIA  socket de communication avec l'IA
  * @return int code d'erreur
  */
 int Jouer(int sock, int couleur, int sockIA){
@@ -661,6 +689,13 @@ int Jouer(int sock, int couleur, int sockIA){
     return 0;
 }
 
+/**
+ * @brief Connexion avec l'IA
+ * 
+ * @param sockIA  socket de communication avec l'IA
+ * @param port    numéro de port de l'IA
+ * @param couleur couleur du joueur
+ */
 void ConnectIA(int *sockIA, int port, int couleur){
     //Faire Connexion avec l'IA, Après avoir fais la demande de partie pour couleur
      if(1==1){

@@ -4,9 +4,9 @@ Le joueur 1 (BLANC) est-il le premier qui se connecte au server ou bien celui qu
 Liste à faire : 
 Serveur : 
 - calculer le score et afficher après chaque partie //DONE
-- Faire timeOut
-- Ajouter les options de lancements 
-- Gérer les erreurs
+- Ajouter les options de lancements //D
+- faire timeOut, envoie au client 
+- Gérer les erreurs /D
 - Affichage propre fin de partie //DONE
 Envoie du coup si requête Typ Incorrecte ??
 
@@ -17,3 +17,6 @@ Dans ce cas, stopper tout ?
 Envoie du coup si requête Typ Incorrecte ??
 Dans ces cas, arrêter la partie ou continuer ?
 IMPORTANT : Est-ce à nous de changer la valeur de rep après validation Coup ? même de vérifier le type de la requête ??
+
+timeOut avec Select, thread ou non bloquante ?
+timeOut ==> propCoup=PERDU?

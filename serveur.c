@@ -5,6 +5,7 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <errno.h>
+#include <time.h>
 #include <arpa/inet.h>
 #include "fonctionsTCP.h"
 #include "fctServ.h"
@@ -20,7 +21,7 @@ struct Joueur
   char nomJoueur[32]; 
   int score;
 };
-
+static bool isTimeOut=true;
 
 /**
  * @brief Traite la requête partie d'un joueur
@@ -142,29 +143,70 @@ void finPartie(struct Joueur *Jcoup, struct Joueur *Jadv,TCoupRep rep){
 int traiteCoup(struct Joueur *Jcoup,struct Joueur *Jadverse, int nJoueur1){
   TCoupReq req;
   TCoupRep rep;
-  int err;
+  int err=0;
+  bool timeOut=false;
   //Joueur 1 ou 2 pour validation
   int nj=2;
   if(Jcoup->couleur+1==nJoueur1) nj=1;
+  struct timeval timev = {6, 0};
+  printf("Attente du coup de %s\n",Jcoup->nomJoueur);
+  if(isTimeOut){
+    // clock_t endwait;
+    // endwait = clock () + 6 * CLOCKS_PER_SEC ;
+    fd_set readSet; 
+    FD_ZERO(&readSet);
+    FD_SET(Jcoup->sockTrans, &readSet);
+    //printf("select\n");
+    err = select(FD_SETSIZE, &readSet, NULL, NULL, &timev);
+    //Traitement du select
+    if (err < 0) {
+      perror(" error in select TraiteCoup"); 
+      return err;
+    }
+    if(err>=0){
+      //Vérification de l'activité
+      if (FD_ISSET(Jcoup->sockTrans, &readSet)) { 
+        //Réception du coup
+        err=recv(Jcoup->sockTrans,&req,sizeof(TCoupReq),0);
+        if(err<=0){
+          perror("(serveur) erreur dans la reception");
+          shutdown(Jcoup->sockTrans, SHUT_RDWR); close(Jcoup->sockTrans);
+          return err;
+        }
+        printf("Réception du coup de %s : %d\n",Jcoup->nomJoueur,req.typeCoup);
+        printf("Coup des %d : %d\n",Jcoup->couleur,req.coul);
+      }else timeOut=true;
+    }
 
-  //Réception du coup
-  err=recv(Jcoup->sockTrans,&req,sizeof(TCoupReq),0);
-  if(err<=0){
-    perror("(serveurTCP) erreur dans la reception");
-    shutdown(Jcoup->sockTrans, SHUT_RDWR); close(Jcoup->sockTrans);
-    return err;
+  }else{
+    //Réception du coup
+    err=recv(Jcoup->sockTrans,&req,sizeof(TCoupReq),0);
+    if(err<=0){
+      perror("(serveur) erreur dans la reception");
+      shutdown(Jcoup->sockTrans, SHUT_RDWR); close(Jcoup->sockTrans);
+      return err;
+    }
+    printf("Réception du coup de %s : %d\n",Jcoup->nomJoueur,req.typeCoup);
+    printf("Coup des %d : %d\n",Jcoup->couleur,req.coul);
   }
-  printf("Réception du coup de %s : %d\n",Jcoup->nomJoueur,req.typeCoup);
-  printf("Coup des %d : %d\n",Jcoup->couleur,req.coul);
-  if(req.idRequest!=COUP){
-    //Error : rep.err=ERR_TYP, rep.validCoup ?
-    //Send ?
+  
+  if(timeOut){
+      printf("Le temps d'attente est dépassé pour le joueur %s\n",Jcoup->nomJoueur);
+      rep.propCoup=PERDU;
+      rep.validCoup=TIMEOUT;
+      rep.err=ERR_COUP;
+  }else if(req.idRequest!=COUP){
+    printf("Erreur de type de la requête\n");
+    rep.err=ERR_TYP;
+    rep.propCoup=PERDU;
   }else{
     //Vérification du coup
     if(!validationCoup(nj,req,&rep.propCoup)){
       //A faire après ??
       //A nous d'initaliser cces valeurs ? pareil pour req.idRequest
       //4 pions même case : Valeur non correctes avant
+      if(Jcoup->couleur==NOIR) printf("Le coup joué par les NOIRS est INVALIDE\n");
+      else printf("Le coup joué par les BLANCS est INVALIDE\n");
       rep.err=ERR_COUP; 
       rep.validCoup=TRICHE;
     }else{
@@ -247,17 +289,23 @@ int main(int argc, char** argv) {
   struct Joueur J1;
   //Joueur 2
   struct Joueur J2;
-
   
   /*
-   * verification des arguments
+   * verification des arguments, 2 argument ou 3 avec l'option "noTimeOut"
    */
-  if (argc != 2) {
-    printf ("usage : %s port\n", argv[0]);
+  if (argc != 2 && ( argc!=3 || (argc==3 && strcmp(argv[1],"--noTimeOut")!=0))) {
+    printf ("usage : %s [--noTimeOut] port\n", argv[0]);
     return -1;
   }
+  
+  if(argc==3){ 
+    isTimeOut=false;
+    port  = atoi(argv[2]);
+  }else{
+    port  = atoi(argv[1]);
+  }
 
-  port  = atoi(argv[1]);
+  
 
   sockConx=socketServeur(port);
   if(sockConx<1){ 
