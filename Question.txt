@@ -3,19 +3,14 @@ Le joueur 1 (BLANC) est-il le premier qui se connecte au server ou bien celui qu
 
 Liste à faire : 
 Serveur : 
-- calculer le score et afficher après chaque partie //DONE
-- Ajouter les options de lancements //D
-- faire timeOut, envoie au client 
 - Gérer les erreurs /D
-- Affichage propre fin de partie //DONE
-Envoie du coup si requête Typ Incorrecte ??
+- Gérer le timeOut au niveau du client (envoie depuis le serveur ?)
+- afficher score client ?
+- sock non bloquante pour gérer le timeOUt côté client mais flemme
+Rapport IA
+Rapport comm
 
--Erreur sur TPartieRep
-Quand Doit-on renvoyer l'erreur ? dans quelles conditions
-Dans ce cas, stopper tout ?
--Erreur sur TCoupRep
-Envoie du coup si requête Typ Incorrecte ??
-Dans ces cas, arrêter la partie ou continuer ?
-IMPORTANT : Est-ce à nous de changer la valeur de rep après validation Coup ? même de vérifier le type de la requête ??
-
-Parti fini, Pas d'envoie du dernier coup à l'adversaire ?
+Cas à gérer ? : 
+Joueur envoie coup, gagne la partie et doit démarrer la partie suivante
+Dénouement après un tour Passe
+Quand lancé l'IA

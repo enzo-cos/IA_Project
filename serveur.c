@@ -22,6 +22,7 @@ struct Joueur
   int score;
 };
 static bool isTimeOut=true;
+const int TIME_MAX=6;
 
 /**
  * @brief Traite la requête partie d'un joueur
@@ -45,9 +46,10 @@ int traiteReqPartie(struct Joueur *J, TPartieReq req ,int cpt){
     J->couleur=NOIR;
   }
   strcpy(J->nomJoueur,req.nomJoueur);
-  printf("J%d : %s connected\n",cpt,J->nomJoueur);
+  printf("J%d : %s is connected\n",cpt,J->nomJoueur);
   return 0;
 }
+
 /**
  * @brief Attente des requêtes des joueurs
  * 
@@ -87,10 +89,12 @@ int AttenteReq(struct Joueur *J1, struct Joueur *J2){
         if(err<0) return err;
         //if err==-8 -> rep.err=ERR_TYP
       }
+      
     }
   }
 
 
+  //Envoie à J1
   rep.coul=J1->couleur;
   rep.err=ERR_OK;
   strcpy(rep.nomAdvers,J2->nomJoueur);
@@ -100,9 +104,10 @@ int AttenteReq(struct Joueur *J1, struct Joueur *J2){
     shutdown(J1->sockTrans, SHUT_RDWR); close(J1->sockTrans);
     return err;
   }
+
+  //Envoie à J2
   rep.coul=J2->couleur;
   rep.err=ERR_OK;
-
   strcpy(rep.nomAdvers,J1->nomJoueur);
   err=send(J2->sockTrans,&rep,sizeof(TPartieRep),0);
   if(err<=0){
@@ -133,7 +138,7 @@ void finPartie(struct Joueur *Jcoup, struct Joueur *Jadv,TCoupRep rep){
 }
 
 /**
- * @brief Traiter un coup reçu par le client S
+ * @brief Traiter un coup reçu par le client
  * 
  * @param Jcoup Joueur ayant envoyé le coup
  * @param Jadverse Joueur adverse
@@ -150,8 +155,7 @@ int traiteCoup(struct Joueur *Jcoup,struct Joueur *Jadverse, int nJoueur1){
   if(Jcoup->couleur+1==nJoueur1) nj=1;
   printf("Attente du coup de %s\n",Jcoup->nomJoueur);
   if(isTimeOut){
-    int nbSeconds=6;
-    struct timeval timev = {nbSeconds, 0};
+    struct timeval timev = {TIME_MAX, 0};
     fd_set readSet; 
     FD_ZERO(&readSet);
     FD_SET(Jcoup->sockTrans, &readSet);
@@ -189,6 +193,7 @@ int traiteCoup(struct Joueur *Jcoup,struct Joueur *Jadverse, int nJoueur1){
     printf("Coup des %d : %d\n",Jcoup->couleur,req.coul);
   }
   
+  //Vérification coup valide
   if(timeOut){
       printf("Le temps d'attente est dépassé pour le joueur %s\n",Jcoup->nomJoueur);
       rep.propCoup=PERDU;
@@ -201,12 +206,8 @@ int traiteCoup(struct Joueur *Jcoup,struct Joueur *Jadverse, int nJoueur1){
   }else{
     //Vérification du coup
     if(!validationCoup(nj,req,&rep.propCoup)){
-      //A faire après ??
-      //A nous d'initaliser cces valeurs ? pareil pour req.idRequest
-      //4 pions même case : Valeur non correctes avant
       if(Jcoup->couleur==NOIR) printf("Le coup joué par les NOIRS est INVALIDE\n");
       else printf("Le coup joué par les BLANCS est INVALIDE\n");
-
       rep.err=ERR_COUP; 
       rep.validCoup=TRICHE;
     }else{
@@ -215,6 +216,7 @@ int traiteCoup(struct Joueur *Jcoup,struct Joueur *Jadverse, int nJoueur1){
     }
   }
   
+
   //Envoi de la réponse au joueur 
   err=send(Jcoup->sockTrans,&rep,sizeof(TCoupRep),0);
   if(err<=0){
@@ -237,7 +239,7 @@ int traiteCoup(struct Joueur *Jcoup,struct Joueur *Jadverse, int nJoueur1){
   }
   //Envoie du coup si requête Typ Incorrecte ??
 
-  //Si tout est valide, Envoie du coup à l'adversaire
+  //Si tout est valide et que la partie continue, Envoie du coup à l'adversaire
   err=send(Jadverse->sockTrans,&req,sizeof(TCoupReq),0);
   if(err<=0){
     perror("(serveur) erreur sur le send");
@@ -264,14 +266,12 @@ int LancerPartie(struct Joueur *J1, struct Joueur *J2){
 
   initialiserPartie();
   while(1){
-    //Verif Attente
     //Joueur 1
     err=traiteCoup(J1,J2,nbJoueur1);
     if(err!=0) return err;
     //Joueur 2
     err=traiteCoup(J2,J1,nbJoueur1);
     if(err!=0) return err;
-
   }
   return 0;
 }
@@ -293,11 +293,11 @@ int main(int argc, char** argv) {
   /*
    * verification des arguments, 2 argument ou 3 avec l'option "noTimeOut"
    */
-  if (argc != 2 && ( argc!=3 || (argc==3 && strcmp(argv[1],"--noTimeOut")!=0))) {
-    printf ("usage : %s [--noTimeOut] port\n", argv[0]);
+  if (argc != 2 && ( argc!=3 || (argc==3 && strcmp(argv[1],"--noTimeout")!=0))) {
+    printf ("usage : %s [--noTimeout] port\n", argv[0]);
     return -1;
   }
-  
+  //Afectation du port
   if(argc==3){ 
     isTimeOut=false;
     port  = atoi(argv[2]);
@@ -305,65 +305,68 @@ int main(int argc, char** argv) {
     port  = atoi(argv[1]);
   }
 
-  
-
+  //Création socket de connexion
   sockConx=socketServeur(port);
   if(sockConx<1){ 
     return -1;
   }
   
-    /*
-    * attente de connexion
-    */
-   //Joueur 1
-    J1.sizeAddr = sizeof(struct sockaddr_in);
-    J1.sockTrans = accept(sockConx, 
-                (struct sockaddr *)&J1.addJ, 
-                (socklen_t *)&J1.sizeAddr);
-    if (J1.sockTrans < 0) {
-        perror("(serveur) erreur sur accept");
-        return -5;
-    }
-    nbCl++;
-    //Joueur 2
-    J2.sizeAddr = sizeof(struct sockaddr_in);
-    J2.sockTrans = accept(sockConx, 
-                (struct sockaddr *)&J2.addJ, 
-                (socklen_t *)&J2.sizeAddr);
-    if (J2.sockTrans < 0) {
-        perror("(serveur) erreur sur accept");
-        return -5;
-    }
-    nbCl++;
+  /*
+  * attente de connexion
+  */
+  //Joueur 1
+  J1.sizeAddr = sizeof(struct sockaddr_in);
+  J1.sockTrans = accept(sockConx, 
+              (struct sockaddr *)&J1.addJ, 
+              (socklen_t *)&J1.sizeAddr);
+  if (J1.sockTrans < 0) {
+      perror("(serveur) erreur sur accept");
+      return -5;
+  }
+  nbCl++;
+  //Joueur 2
+  J2.sizeAddr = sizeof(struct sockaddr_in);
+  J2.sockTrans = accept(sockConx, 
+              (struct sockaddr *)&J2.addJ, 
+              (socklen_t *)&J2.sizeAddr);
+  if (J2.sockTrans < 0) {
+      perror("(serveur) erreur sur accept");
+      return -5;
+  }
+  nbCl++;
 
-    err=AttenteReq(&J1,&J2);
-    if(err<0){
-      printf("Error Attente Req main\n");
-      shutdown(J1.sockTrans, SHUT_RDWR); close(J1.sockTrans);
-      shutdown(J2.sockTrans, SHUT_RDWR); close(J2.sockTrans);
-      close(sockConx);
-      return -1;
-    }
-    if(J1.couleur==NOIR){
-      //Si le J1 n'est pas le premier à avoir envoyé une requête
-      struct Joueur Tmp=J1;
-      J1=J2;
-      J2=Tmp;
-    }
-    //Initialisation des scores
-    J1.score=0;
-    J2.score=0;
-    
-    err=LancerPartie(&J1,&J2);
+  //Attente des requêtes TPartie
+  err=AttenteReq(&J1,&J2);
+  if(err<0){
+    printf("Erreur lors de la requête de demande de partie\nFermeture du serveur\n");
+    shutdown(J1.sockTrans, SHUT_RDWR); close(J1.sockTrans);
+    shutdown(J2.sockTrans, SHUT_RDWR); close(J2.sockTrans);
+    close(sockConx);
+    return -1;
+  }
+
+  if(J1.couleur==NOIR){
+    //Si le J1 n'est pas le premier à avoir envoyé une requête TPartie
+    struct Joueur Tmp=J1;
+    J1=J2;
+    J2=Tmp;
+  }
+  //Initialisation des scores
+  J1.score=0;
+  J2.score=0;
+  
+  //Lancement Première partie
+  err=LancerPartie(&J1,&J2);
+  if(err<0){
+    printf("Error LancerPartie main ou Fin partie\n");
+  }else{
+    //Lancement Deuxième Partie
+    err=LancerPartie(&J2,&J1);
     if(err<0){
       printf("Error LancerPartie main ou Fin partie\n");
-    }else{
-      err=LancerPartie(&J2,&J1);
-      if(err<0){
-        printf("Error LancerPartie main ou Fin partie\n");
-      }
     }
-    
+  }
+  
 
    /* 
    * arret de la connexion et fermeture

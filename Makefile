@@ -5,7 +5,7 @@
 #########
 LD_FLAGS =
 
-all: serveur truePlayer IA
+all: serveur truePlayer IA playerChoix
 
 serveur: serveur.c fonctionsTCP.o fctServ.o colonne.o
 	gcc -Wall serveur.c -o serveur fonctionsTCP.o fctServ.o colonne.o $(LD_FLAGS)
@@ -13,14 +13,17 @@ serveur: serveur.c fonctionsTCP.o fctServ.o colonne.o
 truePlayer: truePlayer.c fonctionsTCP.o fctServ.o
 	gcc -Wall truePlayer.c -o truePlayer fonctionsTCP.o fctServ.o $(LD_FLAGS)
 
+playerChoix: playerChoix.c fonctionsTCP.o fctServ.o
+	gcc -Wall playerChoix.c -o playerChoix fonctionsTCP.o fctServ.o $(LD_FLAGS)
+
 fonctionsTCP.o: fonctionsTCP.c
 	gcc -Wall fonctionsTCP.c -o fonctionsTCP.o -c  $(LD_FLAGS)
 
 fctServ.o : fctServ.c
 	gcc -Wall fctServ.c -o fctServ.o -c  $(LD_FLAGS)
 
-validation.o : validation.c
-	gcc -Wall validation.c -o validation.o -c  $(LD_FLAGS)
+# validation.o : validation.c
+# 	gcc -Wall validation.c -o validation.o -c  $(LD_FLAGS)
 
 IA : IA.java
 	javac IA.java

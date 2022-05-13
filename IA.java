@@ -13,24 +13,27 @@ public class IA {
 
     static int EnvoyerCoup(Socket sock, Plateau plateau, int joueur,DataOutputStream oos){
         int typeCoup,ligne,colonne;
-        typeCoup=colonne=0;
-        ligne=2;
+        typeCoup=0;//Position
+        colonne=0;//colonne A
+        ligne=2;//ligne 3
         int lDepart=0, colDepart=0;
 
         try{
             oos.writeInt(typeCoup);//typeCoup
             if(typeCoup==1){
-                oos.writeInt(lDepart);
                 oos.writeInt(colDepart);
-            }else if(typeCoup==2) return 1; //Passe
-			oos.writeInt(ligne);//ligne
+                oos.writeInt(lDepart);
+            }else if(typeCoup==2) return 0; //Passe
 			oos.writeInt(colonne);//colonne
+            oos.writeInt(ligne);//ligne
             System.out.println(" coup Envoyé : \nType Coup : "+typeCoup+",Ligne : "+ligne+", Colonne : "+colonne+"\n");
             UpdatePlateau(plateau, typeCoup, ligne, colonne, lDepart, colDepart, joueur);
 		} catch (IOException e) {
 		    System.out.println("IO exception1" + e);
+            return -1;
 		}catch (Exception e){
 			System.out.println("Exception1" + e);
+            return -1;
 		}
         return 0;
     }
@@ -41,25 +44,28 @@ public class IA {
         try{
             //Recevoir typeCoup
             typeCoup=dis.readInt();
-            if(typeCoup==2) return 1; //Passe
-            if(typeCoup==1){
-                lDepart=dis.readInt();
+            if(typeCoup==2) return 0; //Passe
+            if(typeCoup==1){ //DEPL
                 colDepart=dis.readInt();
+                lDepart=dis.readInt();
+                System.out.println("Réception coup : \nColonne Départ: "+colDepart+", Ligne Départ: "+lDepart+"\n");
             }
             if(typeCoup>2){
                 //FIN Parti
                 System.err.println("Fin partie");
                 return 3;
             }
-            ligne=dis.readInt();
             colonne=dis.readInt();
-            joueur=dis.readInt()+1;//couleur
-            System.out.println("Réception coup : \nType Coup : "+typeCoup+",Ligne : "+ligne+", Colonne : "+colonne+" Jooueur : "+joueur+"\n");
+            ligne=dis.readInt();
+            //joueur=dis.readInt()+1;//couleur
+            System.out.println("Réception coup : \nType Coup : "+typeCoup+"Colonne : "+colonne+", Ligne : "+ligne+"\n");
             UpdatePlateau(plateau, typeCoup, ligne, colonne, lDepart, colDepart, joueur);
 		} catch (IOException e) {
 		    System.out.println("IO exception2" + e);
+            return -2;
 		}catch (Exception e){
 			System.out.println("Exception2" + e);
+            return -2;
 		}
 
         return 0;
@@ -108,27 +114,33 @@ public class IA {
             //1ère parti
             System.out.println("Première Partie");
             if(myJoueur==1) err=EnvoyerCoup(socket,plateau,myJoueur,oos);
-            while(true){
+            while(err>=0){
                 err=RecevoirCoup(socket, plateau, advJoueur,dis);
+                //if(err<0) break;
                 if(err==3){
-                    //Fin parti
+                    //Fin partie
                     System.out.println("Plateau fin de partie : \n"+plateau);
-                    break;
+                    //break;
+                }else{
+                    err=EnvoyerCoup(socket,plateau,myJoueur,oos);
                 }
-                err=EnvoyerCoup(socket,plateau,myJoueur,oos);
+                //if(err<0) break;
             }
             //Deuxième partie
             System.out.println("Deuxième Partie");
             plateau.clear();
             if(myJoueur==2) err=EnvoyerCoup(socket,plateau,myJoueur,oos);
-            while(true){
+            while(err>=0){
                 err=RecevoirCoup(socket, plateau, advJoueur,dis);
+                //if(err<0) break;
                 if(err==3){
                     //Fin parti
                     System.out.println("Plateau fin de partie : \n"+plateau);
-                    break;
+                    //break;
+                }else{
+                    err=EnvoyerCoup(socket,plateau,myJoueur,oos);
                 }
-                err=EnvoyerCoup(socket,plateau,myJoueur,oos);
+                //if(err<0) break;
             }
 		} catch (UnknownHostException e) { 
 		    System.out.println("Unknown host" + e);
