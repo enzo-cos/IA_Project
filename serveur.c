@@ -93,7 +93,6 @@ int AttenteReq(struct Joueur *J1, struct Joueur *J2){
     }
   }
 
-
   //Envoie à J1
   rep.coul=J1->couleur;
   rep.err=ERR_OK;
@@ -297,7 +296,7 @@ int main(int argc, char** argv) {
     printf ("usage : %s [--noTimeout] port\n", argv[0]);
     return -1;
   }
-  //Afectation du port
+  //Affectation du port
   if(argc==3){ 
     isTimeOut=false;
     port  = atoi(argv[2]);

@@ -73,7 +73,7 @@ int DemandePartie(int sock, char nom[TNOM]){
  * @return false si le coup arrête la partie
  */
 bool ReponseCoup(TCoupRep repCoup, int moi){
-            bool premiereManche =true;
+            bool contiParti =true;
             
             if(moi ==0){
                 switch (repCoup.validCoup) {
@@ -95,15 +95,15 @@ bool ReponseCoup(TCoupRep repCoup, int moi){
                         printf("Continue\n");
                         break;
                     case GAGNE : 
-                        premiereManche =false;
+                        contiParti =false;
                         printf("vous avez gagné \n");
                         break;
                     case NULLE : 
-                        premiereManche =false; 
+                        contiParti =false; 
                         printf("Match Nulle \n");
                         break;
                     case PERDU : 
-                        premiereManche =false; 
+                        contiParti =false; 
                         printf("Vous avez Perdu \n");
                         break;
                 
@@ -130,22 +130,22 @@ bool ReponseCoup(TCoupRep repCoup, int moi){
                         printf("La partie Continue\n");
                         break;
                     case GAGNE : 
-                       premiereManche =false;
+                       contiParti =false;
                         printf("l'adversaire a gagné vous avez perdu \n");
                         break;
                     case NULLE : 
-                       premiereManche =false;
+                       contiParti =false;
                         printf("Match Nulle \n");
                         break;
                     case PERDU : 
-                        premiereManche =false;
+                        contiParti =false;
                         printf("l'adversaire a Perdu vous avez gagné \n");
                         break;
                 
                 }
 
             }
-            return  premiereManche;
+            return  contiParti;
 }
 
 /**
@@ -334,7 +334,6 @@ int EnvoieIA(int sockIA, TCoupReq *coup ){
         shutdown(sockIA, SHUT_RDWR); close(sockIA);
         return -1;
     }
-
     if(coup->typeCoup==DEPL_PION){
         //Envoie case départ Colonne
         n=htonl(coup->action.deplPion.caseDep.col);
@@ -355,7 +354,6 @@ int EnvoieIA(int sockIA, TCoupReq *coup ){
     }else if(coup->typeCoup==PASSE){
         return 1;
     }
-    
     //Envoie Colonne arrivée
     if(coup->typeCoup==DEPL_PION) n=htonl(coup->action.deplPion.caseArr.col);
     else n=htonl(coup->action.posPion.col);
@@ -364,16 +362,19 @@ int EnvoieIA(int sockIA, TCoupReq *coup ){
         perror("erreur dans l'envoie de la colonne");
         shutdown(sockIA, SHUT_RDWR); close(sockIA);
         return -4;
-    }
+    }    
+
     //Envoie Ligne arrivée
     if(coup->typeCoup==DEPL_PION) n=htonl(coup->action.deplPion.caseArr.lg);
     else n=htonl(coup->action.posPion.lg);
+
     err = send(sockIA,&n,sizeof(int),0);
     if (err <= 0) {
         perror("erreur dans l'envoie de la ligne");
         shutdown(sockIA, SHUT_RDWR); close(sockIA);
         return -3;
     }
+    printf("FIN3\n");
     //envoie couleur
     // n=htonl(coup->coul);
     // err = send(sockIA,&n,sizeof(int),0);
@@ -407,6 +408,7 @@ int RecevoirIA(int sockIA, TCoupReq *coup){
     //         printf("TimeOut\n");
     //         return 6;
     //     }
+    
     //Récepetion TypeCoup
     while(tc!=sizeof(int)){
         tc = recv(sockIA,&nb,sizeof(int),MSG_PEEK);
@@ -548,10 +550,50 @@ int EnvoieCoup(int sock, TCoupReq coup){
     }
     //fin de partie si faux
     if(!ReponseCoup(repCoup,0)) return 1;
-    printf("Coup envoyé \n");
+    
     return 0;
 }
 
+/**
+ * @brief Recevoir coup de l'IA et l'envoyer ou gérer le timeOut reçu du serveur 
+ * 
+ * @param sockServeur socket de communication avec le serveur
+ * @param sockIA      socket de communication avec l'IA
+ * @param coup        coup à jouer
+ * @return int  code erreur
+ */
+int RecvIA_Envoi_select(int sockServ, int sockIA,TCoupReq coup){
+    int err=0;
+    //Recevoir Coup de l'IA
+    fd_set readSet; 
+   /* preparation du fd_set et select pour recevoir timeOut si besoin */
+    FD_ZERO(&readSet);
+    FD_SET(sockServ, &readSet);
+    FD_SET(sockIA, &readSet);
+    err = select(FD_SETSIZE, &readSet, NULL, NULL, NULL);
+    //Traitement du select
+    if (err < 0) {
+      perror("(Joueur) error in select recvIA"); 
+      return err;
+    }
+    if(err>=0){
+        //Activité avec serveur => timeOut
+        if (FD_ISSET(sockServ, &readSet)) { 
+            printf("TimeOut : vous avez mis trop de temps à répondre\n");
+            //Envoi de la réponse au joueur 
+            TCoupRep repCoup;
+            err = recv(sockServ, &repCoup, sizeof(TCoupRep), 0);
+            ReponseCoup(repCoup,0);
+            return 1;
+        }
+        if(FD_ISSET(sockIA, &readSet)){
+            err=RecevoirIA(sockIA,&coup);
+            if(err!=0) return err; //Ou établir coup par défault ?
+            err=EnvoieCoup(sockServ,coup);
+        }
+    }
+    return err;
+}
 /**
  * @brief Recevoir le coup de l'adversaire et envoyer son coup
  * 
@@ -573,7 +615,6 @@ int RecevoirEtEnvoyerCoup(int sock, TCoupReq coup, int sockIA){
 
     //Signifie fin de partie
     if(!ReponseCoup(repAdv,1)) return 1;
-
     TCoupReq coupAdv;
     err = recv(sock, &coupAdv, sizeof(TCoupReq), 0);
     if (err <= 0) {
@@ -582,15 +623,12 @@ int RecevoirEtEnvoyerCoup(int sock, TCoupReq coup, int sockIA){
         return -2;
     }
     //Envoi du coup de l'adversaire à l'IA
-    EnvoieIA(sockIA, &coupAdv);
-    //affichage coup
+    err=EnvoieIA(sockIA, &coupAdv);
+    //affichage coup addversaire
     RequeteADV(coupAdv);
-    //Recevoir Coup de l'IA
-    err=RecevoirIA(sockIA,&coup);
-    if(err!=0) return err; //Ou établir coup par défault ?
+    //Recevoir Coup IA et envoyer Coup
+    err=RecvIA_Envoi_select(sock,sockIA,coup);
 
-    err=EnvoieCoup(sock,coup);
-    
     return err;
 }
 
@@ -607,10 +645,7 @@ int DemarrerPartie(int sock, TCoupReq coup, bool startToPlay, int sockIA){
     int err=0;
     //Premier coup de la partie
     if(startToPlay){
-        err=RecevoirIA(sockIA,&coup);
-        if(err<0) return err; //Ou établir coup par défault ?
-        err=EnvoieCoup(sock,coup);
-        if(err<0) return err;
+        err=RecvIA_Envoi_select(sock,sockIA,coup);
     }
     while(err==0){
         err=RecevoirEtEnvoyerCoup(sock,coup, sockIA);
@@ -734,8 +769,10 @@ int main(int argc, char** argv) {
     Jouer(sock, couleur, sockIA);
 
     /* 
-    * fermeture de la connexion et de la socket 
+    * fermeture connexion et sockets
     */
+    shutdown(sockIA, SHUT_RDWR); 
+    close(sockIA);
     shutdown(sock, SHUT_RDWR);
     close(sock);
     

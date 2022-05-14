@@ -17,7 +17,6 @@ public class IA {
         colonne=0;//colonne A
         ligne=2;//ligne 3
         int lDepart=0, colDepart=0;
-
         try{
             oos.writeInt(typeCoup);//typeCoup
             if(typeCoup==1){
@@ -97,7 +96,6 @@ public class IA {
 		int port = Integer.parseInt(args[1]);
 		int err=0;
         Plateau plateau= new Plateau();
-
         try {
 		    socket = new Socket(hote, port) ;
             InputStream is = socket.getInputStream();
@@ -114,7 +112,7 @@ public class IA {
             //1ère parti
             System.out.println("Première Partie");
             if(myJoueur==1) err=EnvoyerCoup(socket,plateau,myJoueur,oos);
-            while(err>=0){
+            while(err==0){
                 err=RecevoirCoup(socket, plateau, advJoueur,dis);
                 //if(err<0) break;
                 if(err==3){
@@ -128,9 +126,10 @@ public class IA {
             }
             //Deuxième partie
             System.out.println("Deuxième Partie");
+            err=0;
             plateau.clear();
             if(myJoueur==2) err=EnvoyerCoup(socket,plateau,myJoueur,oos);
-            while(err>=0){
+            while(err==0){
                 err=RecevoirCoup(socket, plateau, advJoueur,dis);
                 //if(err<0) break;
                 if(err==3){
@@ -158,13 +157,13 @@ class Case{
     int nbColonne;
     int tabPion[];
     int nbPion;
-
-    public Case(){
-        nbLigne=0;
-        nbColonne=0;
-        tabPion=new int[3];  
-        nbPion=0;  
-    }
+    /* Constructeur  */
+    // public Case(){
+    //     nbLigne=-1;
+    //     nbColonne=-1;
+    //     tabPion=new int[3];  
+    //     nbPion=0;  
+    // }
     public Case(int lg,int col){
         nbLigne=lg;
         nbColonne=col;
@@ -172,8 +171,14 @@ class Case{
         nbPion=0;  
     }
 
+    /**
+     * Ajouter pion dans la case
+     * @param joueur joueur actif
+     * @return code erreur
+     */
     public int ajouterPion(int joueur){
         int i=0;
+        //vérification 
         while(tabPion[i]!=0){
             i++;
             if(i>2){
@@ -181,11 +186,16 @@ class Case{
                 return -1;
             }
         }
-        if(joueur!=1 && joueur!=2) System.out.println("JOUEUR INCONNU ");//Impossible
         tabPion[i]=joueur;
+        nbPion++;
         return 0;
     }
 
+    /**
+     * Retirer pion dans la case
+     * @param joueur joueur actif
+     * @return code erreur
+     */
     public int retirerPion(int joueur){
         int i=2;
         while(tabPion[i]==0){
@@ -196,12 +206,19 @@ class Case{
             }
         }
         tabPion[i]=0;
+        nbPion--;
         return 0;
     }
 
+    /**
+     * Affichage case
+     */
     public String toString(){
         int i=0;
         String s="";
+        if(nbLigne<0){
+            return "Case inexistante";
+        }
         while(i<3){
             if(tabPion[i]==1){
                 s+="x";
@@ -232,6 +249,9 @@ class Plateau{
         }
     }
 
+    /**
+     * Initialisation
+     */
     public void clear(){
         for(int i=0;i<taille;i++){
             for(int j=0;j<taille;j++){
@@ -240,13 +260,72 @@ class Plateau{
         }
     }
 
+    /**
+     * Ajouter un pion dans une case
+     * @param lg ligne de la case
+     * @param col colonne de la case
+     * @param joueur joueur actif
+     */
     public void ajouterPion(int lg, int col, int joueur){
         plateau[lg][col].ajouterPion(joueur);
     }
+    /**
+     * Retirer un pion d'une case
+      * @param lg ligne de la case
+     * @param col colonne de la case
+     * @param joueur joueur actif
+     */
     public void retirerPion(int lg, int col, int joueur){
         plateau[lg][col].retirerPion(joueur);
     }
 
+    /**
+     * Obtenir les cases où nos pions sont déplaçables
+     * @param joueur joueur demandant
+     * @return Tableau de cases
+     * Utilisation : parcourir le tableau en vérifiant que case!=null
+     */
+    public Case[] pionDeplacable(int joueur){
+        int cpt=0;
+        Case[] cases=new Case[taille*taille+1];
+        for(int i=0;i<taille;i++){
+            for(int j=0;j<taille;j++){
+                int nb=plateau[i][j].nbPion;
+               if(nb>0 && plateau[i][j].tabPion[nb-1]==joueur){
+                    cases[cpt]=plateau[i][j];
+                    cpt++;
+               }
+            }
+        }
+        for(int i=0;i<10;i++){
+            System.out.println(cases[i]);
+        }
+        return cases;
+    }
+
+    /**
+     * Obtenir les cases disponibles non pleines
+     * @return Tableau de cases
+     * Utilisation : parcourir le tableau en vérifiant que case!=null
+     */
+    public Case[] caseAjouer(){
+        int cpt=0;
+        Case[] cases=new Case[taille*taille+1];
+        for(int i=0;i<taille;i++){
+            for(int j=0;j<taille;j++){
+               if(plateau[i][j].nbPion<3){
+                    cases[cpt]=plateau[i][j];
+                    cpt++;
+               }
+            }
+        }
+
+        return cases;
+    }
+
+    /**
+     * Affichage du plateau de jeu
+     */
     public String toString(){
         String res="    A   B   C  \n";
         int col=0;

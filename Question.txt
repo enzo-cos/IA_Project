@@ -1,12 +1,8 @@
 Question : 
-Le joueur 1 (BLANC) est-il le premier qui se connecte au server ou bien celui qui envoie la requête partie en 1er ?
-
 Liste à faire : 
 Serveur : 
-- Gérer les erreurs /D
-- Gérer le timeOut au niveau du client (envoie depuis le serveur ?)
 - afficher score client ?
-- sock non bloquante pour gérer le timeOUt côté client mais flemme
+- gérer timeOUt côté java ?
 Rapport IA
 Rapport comm
 
