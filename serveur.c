@@ -8,7 +8,6 @@
 #include <time.h>
 #include <arpa/inet.h>
 #include "fonctionsTCP.h"
-#include "fctServ.h"
 #include "protocolColonne.h"
 #include "validation.h"
 
