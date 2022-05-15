@@ -1,23 +1,68 @@
 import java.net.*;
 import java.net.UnknownHostException;
+import java.util.Scanner;
 import java.io.*;
 import java.io.IOException;
 
 public class IA {
-
-    static void UpdatePlateau(Plateau plateau, int typeCoup, int ligne, int colonne,int lDepart, int colDepart, int joueur){
+    
+    static void UpdatePlateau(Plateau plateau, int typeCoup, int ligne, int colonne,int lDepart, int colDepart, Joueur joueur){
         if(typeCoup==1) plateau.retirerPion(lDepart, colDepart, joueur);
         plateau.ajouterPion(ligne, colonne, joueur);
         System.out.println("Affichage du plateau : \n"+plateau);
     }
 
-    static int EnvoyerCoup(Socket sock, Plateau plateau, int joueur,DataOutputStream oos){
+    static Case chercherCoupPosition(Plateau plateau, Joueur joueur){
+        AlphaBeta alphaBeta=new AlphaBeta();
+        return alphaBeta.getResPosition(plateau, joueur);
+    }
+    static Case[] chercherCoupDeplacement(Plateau plateau, Joueur joueur){
+        AlphaBeta alphaBeta=new AlphaBeta();
+        return alphaBeta.getResDeplacement(plateau, joueur);
+    }
+
+    static int EnvoyerCoup(Socket sock, Plateau plateau, Joueur joueur,DataOutputStream oos){
         int typeCoup,ligne,colonne;
         typeCoup=0;//Position
-        colonne=0;//colonne A
-        ligne=2;//ligne 3
+        //if(joueur.pionRestant==0) typeCoup=1;
+        colonne=1;//colonne B
+        ligne=1;//ligne 2
         int lDepart=0, colDepart=0;
+        //Le Premier coup sera joué au milieu
+        if(joueur.nbCoup>0){
+            if(joueur.pionRestant>0){
+                Case caseP=chercherCoupPosition(plateau,joueur);
+                if(caseP==null){
+                    System.out.println("Aucune case trouvée");
+                   
+                }else{
+                    colonne=caseP.nbColonne;
+                    ligne=caseP.nbLigne;
+                }
+                
+            }else{
+                typeCoup=1;
+                Case[] casesRes=chercherCoupDeplacement(plateau, joueur);
+                if(casesRes[0]==null || casesRes[1]==null){
+                    System.out.println("Aucune case trouvée");
+                    typeCoup=2;
+                }else{
+                    colDepart=casesRes[0].nbColonne;
+                    lDepart=casesRes[0].nbLigne;
+                    colonne=casesRes[1].nbColonne;
+                    ligne=casesRes[1].nbLigne;
+                }
+                
+            }
+            
+        }        
+        
+        //Envoie du coup
         try{
+            System.out.println(" coup à Envoyer : \nType Coup : "+typeCoup+", Colonne : "+colonne+", Ligne : "+ligne+"\n");
+            System.out.println(joueur);
+            // Scanner sca=new Scanner(System.in);
+            // sca.nextLine();
             oos.writeInt(typeCoup);//typeCoup
             if(typeCoup==1){
                 oos.writeInt(colDepart);
@@ -25,7 +70,6 @@ public class IA {
             }else if(typeCoup==2) return 0; //Passe
 			oos.writeInt(colonne);//colonne
             oos.writeInt(ligne);//ligne
-            System.out.println(" coup Envoyé : \nType Coup : "+typeCoup+",Ligne : "+ligne+", Colonne : "+colonne+"\n");
             UpdatePlateau(plateau, typeCoup, ligne, colonne, lDepart, colDepart, joueur);
 		} catch (IOException e) {
 		    System.out.println("IO exception1" + e);
@@ -37,12 +81,13 @@ public class IA {
         return 0;
     }
 
-    public static int RecevoirCoup(Socket sock, Plateau plateau, int joueur,DataInputStream dis){
+    public static int RecevoirCoup(Socket sock, Plateau plateau, Joueur joueur,DataInputStream dis){
         int typeCoup,ligne,colonne;
         int lDepart=-1, colDepart=-1;
         try{
             //Recevoir typeCoup
             typeCoup=dis.readInt();
+            System.out.println("réception typeCoup : "+typeCoup);
             if(typeCoup==2) return 0; //Passe
             if(typeCoup==1){ //DEPL
                 colDepart=dis.readInt();
@@ -56,8 +101,7 @@ public class IA {
             }
             colonne=dis.readInt();
             ligne=dis.readInt();
-            //joueur=dis.readInt()+1;//couleur
-            System.out.println("Réception coup : \nType Coup : "+typeCoup+"Colonne : "+colonne+", Ligne : "+ligne+"\n");
+            System.out.println("Réception coup : \nType Coup : "+typeCoup+", Colonne : "+colonne+", Ligne : "+ligne+"\n");
             UpdatePlateau(plateau, typeCoup, ligne, colonne, lDepart, colDepart, joueur);
 		} catch (IOException e) {
 		    System.out.println("IO exception2" + e);
@@ -84,8 +128,6 @@ public class IA {
     }
     public static void main(String[] args) {
 
-        int myJoueur=1;
-        int advJoueur=2;
         if (args.length != 2){
 		    System.out.println("usage : java IA nom/IPServ port\n");
 		    System.exit(1);
@@ -95,23 +137,29 @@ public class IA {
 		String hote = args[0] ;
 		int port = Integer.parseInt(args[1]);
 		int err=0;
+        Joueur myJoueur=new Joueur(1);
+        Joueur advJoueur=new Joueur(2);
         Plateau plateau= new Plateau();
+        plateau.setJoueur(myJoueur, advJoueur);
+        
         try {
 		    socket = new Socket(hote, port) ;
             InputStream is = socket.getInputStream();
 			DataInputStream dis = new DataInputStream(is);
             OutputStream os = socket.getOutputStream();
 			DataOutputStream oos = new DataOutputStream(os);
-            myJoueur=RecevoirCouleur(socket,dis);
-            if(myJoueur<0){
+            myJoueur.numJoueur=RecevoirCouleur(socket,dis);
+            if(myJoueur.numJoueur<0){
                 System.err.println("Erreur dans la couleur reçue");
                 return;
             }
             System.out.println(myJoueur);
-            if(myJoueur==2) advJoueur=1;
+            if(myJoueur.numJoueur==2) advJoueur.numJoueur=1;
             //1ère parti
             System.out.println("Première Partie");
-            if(myJoueur==1) err=EnvoyerCoup(socket,plateau,myJoueur,oos);
+            if(myJoueur.numJoueur==1){ 
+                err=EnvoyerCoup(socket,plateau,myJoueur,oos);
+            }
             while(err==0){
                 err=RecevoirCoup(socket, plateau, advJoueur,dis);
                 //if(err<0) break;
@@ -128,7 +176,9 @@ public class IA {
             System.out.println("Deuxième Partie");
             err=0;
             plateau.clear();
-            if(myJoueur==2) err=EnvoyerCoup(socket,plateau,myJoueur,oos);
+            myJoueur.clear();
+            advJoueur.clear();
+            if(myJoueur.numJoueur==2) err=EnvoyerCoup(socket,plateau,myJoueur,oos);
             while(err==0){
                 err=RecevoirCoup(socket, plateau, advJoueur,dis);
                 //if(err<0) break;
@@ -152,18 +202,40 @@ public class IA {
     }
 }
 
+class Joueur{
+    int numJoueur;
+    int nbCoup;
+    int pionRestant;
+
+    //Constructeur
+    public Joueur(int num){
+        this.numJoueur=num;
+        nbCoup=0;
+        pionRestant=8;
+    }
+    //Constructeur copie
+    public Joueur(Joueur j){
+        this.numJoueur=j.numJoueur;
+        this.nbCoup=j.nbCoup;
+        this.pionRestant=j.pionRestant;
+    }
+
+    public void clear(){
+        nbCoup=0;
+        pionRestant=8;
+    }
+
+    public String toString(){
+        return "Joueur "+this.numJoueur+", nbCoup = "+nbCoup+", pionRestants = "+pionRestant;
+    }
+}
+
 class Case{
     int nbLigne;
     int nbColonne;
     int tabPion[];
     int nbPion;
     /* Constructeur  */
-    // public Case(){
-    //     nbLigne=-1;
-    //     nbColonne=-1;
-    //     tabPion=new int[3];  
-    //     nbPion=0;  
-    // }
     public Case(int lg,int col){
         nbLigne=lg;
         nbColonne=col;
@@ -171,12 +243,17 @@ class Case{
         nbPion=0;  
     }
 
+    // public Case copie(){
+    //     return this.clone();
+    // }
+
     /**
      * Ajouter pion dans la case
      * @param joueur joueur actif
      * @return code erreur
      */
-    public int ajouterPion(int joueur){
+    public int ajouterPion(Joueur joueur){
+        //System.out.println("ajout Pion dans la case c "+this.nbColonne+ ", l "+this.nbLigne);
         int i=0;
         //vérification 
         while(tabPion[i]!=0){
@@ -186,7 +263,9 @@ class Case{
                 return -1;
             }
         }
-        tabPion[i]=joueur;
+        tabPion[i]=joueur.numJoueur;
+        joueur.nbCoup++;
+        if(joueur.pionRestant>0) joueur.pionRestant--;
         nbPion++;
         return 0;
     }
@@ -196,7 +275,7 @@ class Case{
      * @param joueur joueur actif
      * @return code erreur
      */
-    public int retirerPion(int joueur){
+    public int retirerPion(Joueur joueur){
         int i=2;
         while(tabPion[i]==0){
             i--;
@@ -238,15 +317,40 @@ class Case{
 class Plateau{
     Case plateau[][];
     int taille=3;
+    Joueur myJoueur;
+    Joueur advJoueur;
 
+    //Constructeur
     public Plateau(){
         plateau = new Case[taille][taille];
-        //utile ?
         for(int i=0;i<taille;i++){
             for(int j=0;j<taille;j++){
                 plateau[i][j]=new Case(i, j);
             }
         }
+    }
+    //Constructeur copie
+    public Plateau(Plateau plat){
+        this.taille=3;
+        plateau = new Case[taille][taille];
+        this.myJoueur=new Joueur(plat.myJoueur);
+        this.advJoueur=new Joueur(plat.advJoueur);
+        //plateau=plat.plateau.clone();
+        for(int i=0;i<taille;i++){
+            for(int j=0;j<taille;j++){
+                //plateau[i][j]=plat.plateau[i][j].clone();
+                plateau[i][j]=new Case(i, j);
+                plateau[i][j].tabPion[0]=plat.plateau[i][j].tabPion[0];
+                plateau[i][j].tabPion[1]=plat.plateau[i][j].tabPion[1];
+                plateau[i][j].tabPion[2]=plat.plateau[i][j].tabPion[2];
+                plateau[i][j].nbPion=plat.plateau[i][j].nbPion;
+            }
+        }
+    }
+
+    public void setJoueur(Joueur joueur1,Joueur joueur2){
+        this.myJoueur=joueur1;
+        this.advJoueur=joueur2;
     }
 
     /**
@@ -260,13 +364,17 @@ class Plateau{
         }
     }
 
+    public Joueur getAdversaire(){
+        return new Joueur(advJoueur);
+    }
+
     /**
      * Ajouter un pion dans une case
      * @param lg ligne de la case
      * @param col colonne de la case
      * @param joueur joueur actif
      */
-    public void ajouterPion(int lg, int col, int joueur){
+    public void ajouterPion(int lg, int col, Joueur joueur){
         plateau[lg][col].ajouterPion(joueur);
     }
     /**
@@ -275,7 +383,7 @@ class Plateau{
      * @param col colonne de la case
      * @param joueur joueur actif
      */
-    public void retirerPion(int lg, int col, int joueur){
+    public void retirerPion(int lg, int col, Joueur joueur){
         plateau[lg][col].retirerPion(joueur);
     }
 
@@ -291,15 +399,16 @@ class Plateau{
         for(int i=0;i<taille;i++){
             for(int j=0;j<taille;j++){
                 int nb=plateau[i][j].nbPion;
+                //Pion placé au dessus
                if(nb>0 && plateau[i][j].tabPion[nb-1]==joueur){
                     cases[cpt]=plateau[i][j];
                     cpt++;
                }
             }
         }
-        for(int i=0;i<10;i++){
-            System.out.println(cases[i]);
-        }
+        // for(int i=0;i<10;i++){
+        //     System.out.println(cases[i]);
+        // }
         return cases;
     }
 
@@ -343,4 +452,147 @@ class Plateau{
         return res;
     }
 
+}
+
+class AlphaBeta{
+    private static final int PROFONDEUR_MAX = 3;
+
+    /** Constructeur */
+	public AlphaBeta() {
+	}
+
+    public Case getResPosition(Plateau plateau, Joueur joueur){
+        System.out.println("Préparation position");
+        Joueur JoueurCopie=new Joueur(joueur);
+        int res=0;
+        Plateau platCopie2=new Plateau(plateau);
+        Case[] cases=platCopie2.caseAjouer();
+        int valJouer=0;
+        int i=0;
+        int nbCase=0;
+        while(cases[i]!=null){
+			try {
+                Plateau platCopie=new Plateau(platCopie2);
+                platCopie.ajouterPion(cases[i].nbLigne,cases[i].nbColonne, JoueurCopie);
+                int curr=alphabeta(platCopie,JoueurCopie,PROFONDEUR_MAX);
+                if(curr>=valJouer){
+                    valJouer=curr;
+                    nbCase=i;
+                }
+				i++;
+			} catch (Exception e) {
+                System.out.println("ErrGetRes");
+				e.printStackTrace();
+			}
+		}
+        return cases[nbCase];
+    }
+
+    public Case[] getResDeplacement(Plateau plateau, Joueur joueur){
+        System.out.println("Préparation déplacement");
+        Joueur JoueurCopie=new Joueur(joueur);
+        int res=0;
+        Plateau platCopie2=new Plateau(plateau);
+        Case[] cases=platCopie2.caseAjouer();
+        Case[] resCase=new Case[2];
+        int valJouer=0;
+        int i=0;
+        int nbCase=0;
+        while(cases[i]!=null){
+			try {
+                Plateau platCopie=new Plateau(platCopie2);
+                platCopie.ajouterPion(cases[i].nbLigne,cases[i].nbColonne, JoueurCopie);
+                int curr=alphabeta(platCopie,JoueurCopie,PROFONDEUR_MAX);
+                if(curr>=valJouer){
+                    valJouer=curr;
+                    nbCase=i;
+                }
+				i++;
+			} catch (Exception e) {
+                System.out.println("ErrGetRes");
+				e.printStackTrace();
+			}
+		}
+        resCase[0]=platCopie2.plateau[0][0];//CHANGE
+        resCase[1]=cases[nbCase];
+        return resCase;
+    }
+
+    private int alphabeta(Plateau plat, Joueur joueur, int profondeur){
+		int alpha =0;
+		int beta=300;
+		return this.min(plat, joueur, profondeur, alpha, beta);
+	}
+
+    private int min(Plateau plateau, Joueur joueur,  int profondeur, int alpha, int beta){
+        Case[] cases=plateau.caseAjouer();
+        Joueur adversaireCopie=plateau.getAdversaire();
+		if(profondeur != 0){
+			int valeurDeJeu = 300;
+			int i=0;
+            while(cases[i]!=null){
+				try {
+                    Plateau platCopie=new Plateau(plateau);
+                    platCopie.ajouterPion(cases[i].nbLigne,cases[i].nbColonne, adversaireCopie);
+
+					valeurDeJeu = Math.min(valeurDeJeu, this.max(platCopie, joueur, profondeur-1, alpha, beta));
+						
+                    if(alpha >= valeurDeJeu){
+                        return valeurDeJeu; // Coupure alpha
+                    }
+						
+		            beta = Math.min(beta, valeurDeJeu);
+						
+				} catch (Exception e) {
+                    System.out.println("minError");
+					e.printStackTrace();
+				}
+                i++;
+			}
+			return valeurDeJeu;
+		}else{
+			return this.getVal(plateau,joueur);
+		}
+	}
+
+    private int max(Plateau plateau, Joueur joueur, int profondeur, int alpha, int beta){
+		Case[] cases=plateau.caseAjouer();
+		if(profondeur != 0){
+			int valeurDeJeu = 300;
+			int i=0;
+            while(cases[i]!=null){
+				try {
+                    Plateau platCopie=new Plateau(plateau);
+                    platCopie.ajouterPion(cases[i].nbLigne,cases[i].nbColonne, joueur);
+
+					valeurDeJeu = Math.max(valeurDeJeu, this.min(platCopie, joueur, profondeur-1, alpha, beta));
+						
+                    if(valeurDeJeu >= beta){
+                        return valeurDeJeu; // Coupure alpha
+                    }
+						
+		            alpha = Math.max(alpha, valeurDeJeu);
+						
+				} catch (Exception e) {
+                    System.out.println("maxError");
+					e.printStackTrace();
+				}
+                i++;
+			}
+			return valeurDeJeu;
+		}else{
+			return this.getVal(plateau,joueur);
+		}
+	}
+
+    public int getVal(Plateau plat, Joueur joueur){
+        int res=0;
+        for(int i=0;i<plat.taille;i++){
+            for(int j=0;j<plat.taille;j++){
+                res+=joueur.numJoueur*plat.plateau[i][j].nbPion;
+            }
+        }
+       // System.out.println("Valeur retournée : "+res);
+        return res;
+    }
 }
