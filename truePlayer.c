@@ -708,7 +708,7 @@ int Jouer(int sock, int couleur, int sockIA){
 void ConnectIA(int *sockIA, int portIA, int couleur){
     //Faire Connexion avec l'IA, Après avoir fais la demande de partie pour couleur
     struct sockaddr_in addClient;	/* adresse de la socket client connectee */
-    int err=0;
+    //int err=0;
     int sockConx;
     sockConx=socketServeur(portIA);
     if(sockConx<1){ 
@@ -722,14 +722,14 @@ void ConnectIA(int *sockIA, int portIA, int couleur){
         perror(" erreur sur accept Connexion avec l'IA");
         return ;
     }
-    //Envoie de la couleur à l'IA
-    couleur=htonl(couleur);
-    err = send(*sockIA,&couleur,sizeof(int),0);
-    if (err <= 0) {
-        perror("erreur dans l'envoie de la couleur");
-        shutdown(*sockIA, SHUT_RDWR); close(*sockIA);
-        return ;
-    }
+    // //Envoie de la couleur à l'IA
+    // couleur=htonl(couleur);
+    // err = send(*sockIA,&couleur,sizeof(int),0);
+    // if (err <= 0) {
+    //     perror("erreur dans l'envoie de la couleur");
+    //     shutdown(*sockIA, SHUT_RDWR); close(*sockIA);
+    //     return ;
+    // }
     //*************** FIN Connexion ***********************
 }
 
@@ -747,24 +747,35 @@ int main(int argc, char** argv) {
     //     printf("usage : %s nom/IPServ nomJoueur portServeur portIA \n", argv[0]);
     //     return -1;
     // }
-    if (argc != 4) {
-        printf("usage : %s nomJoueur portServeur portIA \n", argv[0]);
+    int err;
+    if (argc != 5) {
+        printf("usage : %s hostServeur portServeur nomJoueur portIA  \n", argv[0]);
         return -1;
     }
-    char* nom = argv[1];
-    ipMachServ="127.0.0.1";
-    //ipMachServ = argv[1];
+    char* nom = argv[3];
+    //ipMachServ="DESKTOP-6V7IDHB";
+    ipMachServ = argv[1];
     port = atoi(argv[2]);
     sock = socketClient(ipMachServ,port);
-    portIA=atoi(argv[3]);
+    portIA=atoi(argv[4]);
     if(sock<1){
         return -1;
     }
-    
+     int sockIA;
+    ConnectIA(&sockIA, portIA, 0);
+    printf("Connexion à l'IA réalisé\n");
     int couleur = DemandePartie(sock, nom);
     if(couleur<0) return -1;
-    int sockIA;
-    ConnectIA(&sockIA, portIA, couleur);
+   
+    // ConnectIA(&sockIA, portIA, couleur);
+    //Envoie de la couleur à l'IA
+    int send_couleur=htonl(couleur);
+    err = send(sockIA,&send_couleur,sizeof(int),0);
+    if (err <= 0) {
+        perror("erreur dans l'envoie de la couleur");
+        shutdown(sockIA, SHUT_RDWR); close(sockIA);
+        return -1 ;
+    }
     Jouer(sock, couleur, sockIA);
 
     /* 
