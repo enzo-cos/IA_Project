@@ -12,7 +12,7 @@ fi
 
 
 ./truePlayer $host $port $nom $portIA &
-sleep 2
-java IA "127.0.0.1" $portIA 
+sleep 1
+java IA $1 $portIA 
 
 
