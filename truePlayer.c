@@ -373,15 +373,7 @@ int EnvoieIA(int sockIA, TCoupReq *coup ){
         shutdown(sockIA, SHUT_RDWR); close(sockIA);
         return -3;
     }
-    printf("FIN3\n");
-    //envoie couleur
-    // n=htonl(coup->coul);
-    // err = send(sockIA,&n,sizeof(int),0);
-    // if (err <= 0) {
-    //     perror("erreur dans l'envoie de la couleur");
-    //     shutdown(sockIA, SHUT_RDWR); close(sockIA);
-    //     return -5;
-    // }
+
 
     return 0;
 }
