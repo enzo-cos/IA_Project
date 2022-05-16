@@ -1,26 +1,57 @@
 import java.net.*;
 import java.net.UnknownHostException;
 import java.util.Scanner;
+
 import java.io.*;
 import java.io.IOException;
 
 public class IA {
     
+    /**
+     * Mettre à jour le plateau de jeu
+     * @param plateau plateau de jeu
+     * @param typeCoup type de coup joué
+     * @param ligne numéro de ligne d'arrivée
+     * @param colonne numéro de colonne d'arrivée
+     * @param lDepart numéro de ligne de départ
+     * @param colDepart numéro de colonne de départ
+     * @param joueur joueur courant
+     */
     static void UpdatePlateau(Plateau plateau, int typeCoup, int ligne, int colonne,int lDepart, int colDepart, Joueur joueur){
         if(typeCoup==1) plateau.retirerPion(lDepart, colDepart, joueur);
         plateau.ajouterPion(ligne, colonne, joueur);
         System.out.println("Affichage du plateau : \n"+plateau);
     }
 
+    /**
+     * Chercher un coup de type position
+     * @param plateau plateau de jeu
+     * @param joueur joueur courant
+     * @return Case trouvée
+     */
     static Case chercherCoupPosition(Plateau plateau, Joueur joueur){
         AlphaBeta alphaBeta=new AlphaBeta();
         return alphaBeta.getResPosition(plateau, joueur);
     }
+    /**
+     * Chercher un coup de type Déplacement
+     * @param plateau plateau de jeu
+     * @param joueur joueur courant
+     * @return Case trouvée
+     */
     static Case[] chercherCoupDeplacement(Plateau plateau, Joueur joueur){
         AlphaBeta alphaBeta=new AlphaBeta();
         return alphaBeta.getResDeplacement(plateau, joueur);
     }
 
+    /**
+     * Envoyer un coup au joueur 
+     * @param sock sock de com
+     * @param plateau plateau de jeau
+     * @param joueur Joueur 
+     * @param oos
+     * @return code erreur
+     */
     static int EnvoyerCoup(Socket sock, Plateau plateau, Joueur joueur,DataOutputStream oos){
         int typeCoup,ligne,colonne;
         typeCoup=0;//Position
@@ -34,7 +65,7 @@ public class IA {
                 Case caseP=chercherCoupPosition(plateau,joueur);
                 if(caseP==null){
                     System.out.println("Aucune case trouvée");
-                   
+                    typeCoup=2;
                 }else{
                     colonne=caseP.nbColonne;
                     ligne=caseP.nbLigne;
@@ -81,13 +112,20 @@ public class IA {
         return 0;
     }
 
+    /**
+     * Recevoir un coup du client
+     * @param sock socket de communication
+     * @param plateau plateau de jeu
+     * @param joueur joueur courant
+     * @param dis
+     * @return code d'erreur
+     */
     public static int RecevoirCoup(Socket sock, Plateau plateau, Joueur joueur,DataInputStream dis){
         int typeCoup,ligne,colonne;
         int lDepart=-1, colDepart=-1;
         try{
             //Recevoir typeCoup
             typeCoup=dis.readInt();
-            System.out.println("réception typeCoup : "+typeCoup);
             if(typeCoup==2) return 0; //Passe
             if(typeCoup==1){ //DEPL
                 colDepart=dis.readInt();
@@ -114,6 +152,12 @@ public class IA {
         return 0;
     }
 
+    /**
+     * Recevoir la couleur de jeu
+     * @param sock
+     * @param dis
+     * @return couleur
+     */
     public static int RecevoirCouleur(Socket sock,DataInputStream dis){
         int res=-1;
         try{
@@ -202,6 +246,7 @@ public class IA {
     }
 }
 
+//Class Joueur
 class Joueur{
     int numJoueur;
     int nbCoup;
@@ -230,6 +275,7 @@ class Joueur{
     }
 }
 
+//Class Case
 class Case{
     int nbLigne;
     int nbColonne;
@@ -243,17 +289,12 @@ class Case{
         nbPion=0;  
     }
 
-    // public Case copie(){
-    //     return this.clone();
-    // }
-
     /**
      * Ajouter pion dans la case
      * @param joueur joueur actif
      * @return code erreur
      */
     public int ajouterPion(Joueur joueur){
-        //System.out.println("ajout Pion dans la case c "+this.nbColonne+ ", l "+this.nbLigne);
         int i=0;
         //vérification 
         while(tabPion[i]!=0){
@@ -289,6 +330,78 @@ class Case{
         return 0;
     }
 
+
+    /**
+     * Calculer la valeur (Poids) d'une case
+     * @param joueur courant
+     * @param typeCoup type du coup à jouer
+     * @param plateau plateau de la partie en cours
+     * @return Valeur de la case
+     */
+    public int getValeurCase(Joueur joueur, int typeCoup, Plateau plateau){
+        int res=10000; //initialisation du poids
+        int nbPionJoueur=0; //nbPionsJoueur
+        boolean joueurTop=true;
+        boolean caseVide=false;
+        //parcours de la case
+        if(nbPion==0) caseVide=true;
+        //Parcours case
+        for(int k=0;k<nbPion;k++){
+            if(tabPion[k]==joueur.numJoueur){
+                nbPionJoueur++;
+                if(k==nbPion-1) joueurTop=true;
+            } 
+        }
+
+        if(caseVide){
+            if(typeCoup==0){ //Position
+                res+=5000;
+                if(nbLigne!=1 || nbColonne!=1) res+=500; //Pas d'angle
+            }else{ //déplacement
+                if(plateau.verifCaseVoisine(plateau.pionDeplacable(joueur), nbLigne, nbColonne)!=null){ //Si on peut déplacer un pion dans cette case
+                    res+=1000;
+                    if(nbLigne!=1 || nbColonne!=1) res+=4000;
+                }else res-=1000;
+                
+            }
+        }else{
+            if(nbPionJoueur==2 && nbPion==2){ //si on a deux pions sur une case contenant seulement deux pions
+                if(typeCoup==0 || plateau.verifCaseVoisine(plateau.pionDeplacable(joueur), nbLigne, nbColonne)!=null){ //Si on peut déplacer un pion dans cette case
+                    res+=250000;
+                }else res+=200000;
+            }
+            if(nbPionJoueur==1 && nbPion==1){ //si on a un pion seul
+                if(typeCoup==0 || plateau.verifCaseVoisine(plateau.pionDeplacable(joueur), nbLigne, nbColonne)!=null){ //Si on peut déplacer un pion dans cette case
+                    res+=50000;
+                }else res+=30000;
+            }
+            if(joueurTop){ //si le joueur a une case au dessus
+                res+=10000;
+            }
+            if(nbPion==2 && (typeCoup==0 || plateau.verifCaseVoisine(plateau.pionDeplacable(joueur), nbLigne, nbColonne)!=null)) res+=3000;
+            if(!joueurTop){
+                if(nbPion==2 && nbPionJoueur==0){ //Il ne faut pas que l'adversaire ait 2 pions dans la même case
+                    if(typeCoup==0 || plateau.verifCaseVoisine(plateau.pionDeplacable(joueur), nbLigne, nbColonne)!=null){ //Si on peut déplacer un pion dans cette case
+                        res-=250000; //Bloquer l'adversaire
+                    }else res-=300000;
+                }
+                if(nbPion==2 && nbPionJoueur==1){
+                    res+=5000;
+                }
+                res-=5000;
+            }
+            if(nbPion==3){
+                if(joueurTop) res+=50000;
+                else res-=10000;
+            }
+            if(nbPion==3 && nbPionJoueur==3) res+=3700000; //Victoire
+            if(nbPion==3 && nbPionJoueur==0) res-=2000000; //Défaite
+            if(nbPion==3 && nbPionJoueur==1 && joueurTop) res+=300000; //Bloquer
+
+        } 
+        return res;
+    }
+
     /**
      * Affichage case
      */
@@ -300,9 +413,9 @@ class Case{
         }
         while(i<3){
             if(tabPion[i]==1){
-                s+="x";
-            }else if(tabPion[i]==2){
                 s+="o";
+            }else if(tabPion[i]==2){
+                s+="x";
             }else if(tabPion[i]==0){
                 s+=" ";
             }
@@ -314,6 +427,7 @@ class Case{
 
 }
 
+//class Plateau
 class Plateau{
     Case plateau[][];
     int taille=3;
@@ -348,6 +462,7 @@ class Plateau{
         }
     }
 
+    //Set les joueur 1 et 2
     public void setJoueur(Joueur joueur1,Joueur joueur2){
         this.myJoueur=joueur1;
         this.advJoueur=joueur2;
@@ -393,31 +508,28 @@ class Plateau{
      * @return Tableau de cases
      * Utilisation : parcourir le tableau en vérifiant que case!=null
      */
-    public Case[] pionDeplacable(int joueur){
+    public Case[] pionDeplacable(Joueur joueur){
         int cpt=0;
         Case[] cases=new Case[taille*taille+1];
         for(int i=0;i<taille;i++){
             for(int j=0;j<taille;j++){
                 int nb=plateau[i][j].nbPion;
                 //Pion placé au dessus
-               if(nb>0 && plateau[i][j].tabPion[nb-1]==joueur){
+               if(nb>0 && plateau[i][j].tabPion[nb-1]==joueur.numJoueur){
                     cases[cpt]=plateau[i][j];
                     cpt++;
                }
             }
         }
-        // for(int i=0;i<10;i++){
-        //     System.out.println(cases[i]);
-        // }
         return cases;
     }
 
     /**
-     * Obtenir les cases disponibles non pleines
+     * Obtenir les cases disponibles non pleines pour coup Positon
      * @return Tableau de cases
      * Utilisation : parcourir le tableau en vérifiant que case!=null
      */
-    public Case[] caseAjouer(){
+    public Case[] caseAjouerPos(){
         int cpt=0;
         Case[] cases=new Case[taille*taille+1];
         for(int i=0;i<taille;i++){
@@ -432,6 +544,57 @@ class Plateau{
         return cases;
     }
 
+    /**
+     * Obtenir les cases disponibles pour coup Déplacement, avec un pion déplaçable à côté
+     * @param joueur Joueur voulant déplacer un pion
+     * @return Tableau de cases
+     * Utilisation : parcourir le tableau en vérifiant que case!=null
+     */
+    public Case[] caseAjouerDepl(Joueur joueur){
+        int cpt=0;
+        Case[] cases=new Case[taille*taille+1];
+        Case[] pions=pionDeplacable(joueur);
+
+        for(int i=0;i<taille;i++){
+            for(int j=0;j<taille;j++){
+               if(plateau[i][j].nbPion<3){
+                   //Case non pleine
+                   if(verifCaseVoisine(pions,i, j)!=null){
+                        cases[cpt]=plateau[i][j];
+                        cpt++;
+                   }
+                    
+               }
+            }
+        }
+        return cases;
+    }
+    
+
+    /**
+     * Vérifier si une case a un pion déplaçable à coté d'elle
+     * @param l ligne de la case
+     * @param c colonne de la case
+     * @return la case où le pion peut être retiré, null si il n'y en a pas
+     */
+    public Case verifCaseVoisine(Case[] pions, int l, int c){
+        //boolean b=false;
+        Case res=null;
+        int k=0;
+        //ligne=l && col 0 -> 2
+        while(pions[k]!=null){
+            for(int ligne=l-1;ligne<l+2;ligne++){
+                for(int col=c-1;col<c+2;col++){
+                    if(ligne<0 || ligne >2 || col <0 || col>2) continue;
+                    if((ligne==l && col==c) || (ligne!=l && col!= c)) continue;
+                    if(pions[k].nbLigne==ligne && pions[k].nbColonne==col) res=pions[k];
+                }
+            }
+            
+            k++;
+        }
+        return res;
+    }
     /**
      * Affichage du plateau de jeu
      */
@@ -454,19 +617,25 @@ class Plateau{
 
 }
 
+//Class AlphaBeta
 class AlphaBeta{
-    private static final int PROFONDEUR_MAX = 3;
+    private static final int PROFONDEUR_MAX = 4;
 
     /** Constructeur */
 	public AlphaBeta() {
 	}
 
+    /**
+     * Obtenir le résultat d'un coup position
+     * @param plateau plateau de jeu
+     * @param joueur joueur courant
+     * @return Casse trouvée
+     */
     public Case getResPosition(Plateau plateau, Joueur joueur){
         System.out.println("Préparation position");
         Joueur JoueurCopie=new Joueur(joueur);
-        int res=0;
         Plateau platCopie2=new Plateau(plateau);
-        Case[] cases=platCopie2.caseAjouer();
+        Case[] cases=platCopie2.caseAjouerPos();
         int valJouer=0;
         int i=0;
         int nbCase=0;
@@ -474,26 +643,33 @@ class AlphaBeta{
 			try {
                 Plateau platCopie=new Plateau(platCopie2);
                 platCopie.ajouterPion(cases[i].nbLigne,cases[i].nbColonne, JoueurCopie);
-                int curr=alphabeta(platCopie,JoueurCopie,PROFONDEUR_MAX);
+                int curr=alphabeta(platCopie,JoueurCopie,PROFONDEUR_MAX,0);
                 if(curr>=valJouer){
                     valJouer=curr;
                     nbCase=i;
                 }
 				i++;
 			} catch (Exception e) {
-                System.out.println("ErrGetRes");
+                System.err.println("ErrGetRes");
 				e.printStackTrace();
 			}
 		}
+        if(i==0) return null;
         return cases[nbCase];
     }
 
+    /**
+     * Obtenir le résultat d'un coup déplacement
+     * @param plateau plateau de jeu
+     * @param joueur joueur courant
+     * @return Casse trouvée
+     */
     public Case[] getResDeplacement(Plateau plateau, Joueur joueur){
         System.out.println("Préparation déplacement");
         Joueur JoueurCopie=new Joueur(joueur);
-        int res=0;
         Plateau platCopie2=new Plateau(plateau);
-        Case[] cases=platCopie2.caseAjouer();
+        //pionD
+        Case[] cases=platCopie2.caseAjouerDepl(joueur);
         Case[] resCase=new Case[2];
         int valJouer=0;
         int i=0;
@@ -501,44 +677,53 @@ class AlphaBeta{
         while(cases[i]!=null){
 			try {
                 Plateau platCopie=new Plateau(platCopie2);
+                
                 platCopie.ajouterPion(cases[i].nbLigne,cases[i].nbColonne, JoueurCopie);
-                int curr=alphabeta(platCopie,JoueurCopie,PROFONDEUR_MAX);
+                int curr=alphabeta(platCopie,JoueurCopie,PROFONDEUR_MAX,1);
                 if(curr>=valJouer){
                     valJouer=curr;
                     nbCase=i;
                 }
 				i++;
+               
 			} catch (Exception e) {
-                System.out.println("ErrGetRes");
+                System.err.println("ErrGetRes");
 				e.printStackTrace();
 			}
 		}
-        resCase[0]=platCopie2.plateau[0][0];//CHANGE
+        if(i==0) return resCase;
+        //Case départ
+        resCase[0]=plateau.verifCaseVoisine(plateau.pionDeplacable(joueur), cases[nbCase].nbLigne,  cases[nbCase].nbColonne);
+        //Case arrivée
         resCase[1]=cases[nbCase];
         return resCase;
     }
 
-    private int alphabeta(Plateau plat, Joueur joueur, int profondeur){
+    //alphabeta
+    private int alphabeta(Plateau plat, Joueur joueur, int profondeur, int typeCoup){
 		int alpha =0;
-		int beta=300;
-		return this.min(plat, joueur, profondeur, alpha, beta);
+		int beta=10000000;
+		return this.min(plat, joueur, profondeur, alpha, beta,typeCoup);
 	}
 
-    private int min(Plateau plateau, Joueur joueur,  int profondeur, int alpha, int beta){
-        Case[] cases=plateau.caseAjouer();
+    //Algo Min 
+    private int min(Plateau plateau, Joueur joueur,  int profondeur, int alpha, int beta,int typeCoup){
+        Case[] cases;
+        if(typeCoup==0) cases=plateau.caseAjouerPos();
+        else cases = plateau.caseAjouerDepl(joueur);
         Joueur adversaireCopie=plateau.getAdversaire();
 		if(profondeur != 0){
-			int valeurDeJeu = 300;
+			int valeurDeJeu = 10000000;
 			int i=0;
             while(cases[i]!=null){
 				try {
                     Plateau platCopie=new Plateau(plateau);
                     platCopie.ajouterPion(cases[i].nbLigne,cases[i].nbColonne, adversaireCopie);
 
-					valeurDeJeu = Math.min(valeurDeJeu, this.max(platCopie, joueur, profondeur-1, alpha, beta));
+					valeurDeJeu = Math.min(valeurDeJeu, this.max(platCopie, joueur, profondeur-1, alpha, beta,typeCoup));
 						
                     if(alpha >= valeurDeJeu){
-                        return valeurDeJeu; // Coupure alpha
+                        return valeurDeJeu; // Coupure
                     }
 						
 		            beta = Math.min(beta, valeurDeJeu);
@@ -551,24 +736,27 @@ class AlphaBeta{
 			}
 			return valeurDeJeu;
 		}else{
-			return this.getVal(plateau,joueur);
+			return this.getVal(plateau,joueur,typeCoup);
 		}
 	}
 
-    private int max(Plateau plateau, Joueur joueur, int profondeur, int alpha, int beta){
-		Case[] cases=plateau.caseAjouer();
+    //algo max
+    private int max(Plateau plateau, Joueur joueur, int profondeur, int alpha, int beta,int typeCoup){
+		Case[] cases;
+        if(typeCoup==0) cases=plateau.caseAjouerPos();
+        else cases = plateau.caseAjouerDepl(joueur);
 		if(profondeur != 0){
-			int valeurDeJeu = 300;
+			int valeurDeJeu = 10;
 			int i=0;
             while(cases[i]!=null){
 				try {
                     Plateau platCopie=new Plateau(plateau);
                     platCopie.ajouterPion(cases[i].nbLigne,cases[i].nbColonne, joueur);
 
-					valeurDeJeu = Math.max(valeurDeJeu, this.min(platCopie, joueur, profondeur-1, alpha, beta));
+					valeurDeJeu = Math.max(valeurDeJeu, this.min(platCopie, joueur, profondeur-1, alpha, beta,typeCoup));
 						
                     if(valeurDeJeu >= beta){
-                        return valeurDeJeu; // Coupure alpha
+                        return valeurDeJeu; // Coupure
                     }
 						
 		            alpha = Math.max(alpha, valeurDeJeu);
@@ -581,18 +769,19 @@ class AlphaBeta{
 			}
 			return valeurDeJeu;
 		}else{
-			return this.getVal(plateau,joueur);
+			return this.getVal(plateau,joueur, typeCoup);
 		}
 	}
 
-    public int getVal(Plateau plat, Joueur joueur){
+    //Obtenir le résultat
+    public int getVal(Plateau plat, Joueur joueur, int typeCoup){
         int res=0;
+       
         for(int i=0;i<plat.taille;i++){
             for(int j=0;j<plat.taille;j++){
-                res+=joueur.numJoueur*plat.plateau[i][j].nbPion;
+                res+=plat.plateau[i][j].getValeurCase(joueur, typeCoup,plat);
             }
         }
-       // System.out.println("Valeur retournée : "+res);
         return res;
     }
 }

@@ -587,7 +587,7 @@ int RecvIA_Envoi_select(int sockServ, int sockIA,TCoupReq coup){
         }
         if(FD_ISSET(sockIA, &readSet)){
             err=RecevoirIA(sockIA,&coup);
-            if(err!=0) return err; //Ou établir coup par défault ?
+            if(err<0) return err; //Ou établir coup par défault ?
             err=EnvoieCoup(sockServ,coup);
         }
     }
