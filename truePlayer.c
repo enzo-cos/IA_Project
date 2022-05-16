@@ -426,7 +426,7 @@ int RecevoirIA(int sockIA, TCoupReq *coup){
     coup->typeCoup=ntohl(nb);
     printf("reçu typeCoup : %d\n",coup->typeCoup);
     //Recevoir Les cases de départ si déplacement
-    if(tc==DEPL_PION){
+    if(coup->typeCoup==DEPL_PION){
         //Recevoir Colonne Départ
         //printf("Recevoir Colonne Départ : \n");
         while(cD!=sizeof(int)){
@@ -465,7 +465,7 @@ int RecevoirIA(int sockIA, TCoupReq *coup){
         coup->action.deplPion.caseDep.lg=ntohl(nb);
         printf("reçu Ligne Départ : %d\n",coup->action.deplPion.caseDep.lg);
         
-    }else if(tc==PASSE){ //Passer le tour
+    }else if(coup->typeCoup==PASSE){ //Passer le tour
         printf("Tour passé\n");
         return 2;
     } 
@@ -587,7 +587,7 @@ int RecvIA_Envoi_select(int sockServ, int sockIA,TCoupReq coup){
         }
         if(FD_ISSET(sockIA, &readSet)){
             err=RecevoirIA(sockIA,&coup);
-            if(err!=0) return err; //Ou établir coup par défault ?
+            if(err<0) return err; //Ou établir coup par défault ?
             err=EnvoieCoup(sockServ,coup);
         }
     }
